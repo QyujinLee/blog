@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 900 220"
+    fill="none">
+
+    <defs>
+
+        <!-- 메인 그라데이션 -->
+        <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#F7CAC9"/>
+            <stop offset="100%" stop-color="#92A8D1"/>
+        </linearGradient>
+
+        <!-- 왼쪽에서 오른쪽으로 차오르고, 다시 왼쪽에서 오른쪽으로 비워지는 마스크 -->
+        <mask id="wipeMask">
+            <rect x="0" y="0" width="0" height="220" fill="white">
+                <animate
+                    attributeName="width"
+                    values="0;900;900;0;0"
+                    keyTimes="0;0.35;0.5;0.85;1"
+                    dur="3.2s"
+                    repeatCount="indefinite"/>
+                <animate
+                    attributeName="x"
+                    values="0;0;0;900;900"
+                    keyTimes="0;0.35;0.5;0.85;1"
+                    dur="3.2s"
+                    repeatCount="indefinite"/>
+            </rect>
+        </mask>
+
+    </defs>
+
+    <!-- 메인 글자 -->
+    <text
+        x="50%"
+        y="55%"
+        dominant-baseline="middle"
+        text-anchor="middle"
+        font-family="cursive"
+        font-size="88"
+        font-weight="600"
+        fill="url(#mainGradient)"
+        mask="url(#wipeMask)">
+
+        gyujin's log
+
+    </text>
+
+</svg>

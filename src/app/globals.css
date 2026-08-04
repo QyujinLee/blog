@@ -1,0 +1,135 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-pretendard);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-pretendard);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* ---- brand tokens: Pantone 2016 Rose Quartz x Serenity, docs/blog-structure-plan.md 참고 ---- */
+  --rose-quartz: oklch(0.878 0.051 19.7); /* #F7CAC9 */
+  --serenity: oklch(0.729 0.065 262.7); /* #92A8D1 */
+  --serenity-50: oklch(0.975 0.007 260.7); /* #F4F7FC */
+  --serenity-200: oklch(0.907 0.023 258.4); /* #D7E1F0 */
+  --serenity-600: oklch(0.523 0.087 260.2); /* #4C6A9C */
+  --serenity-900: oklch(0.284 0.049 259.5); /* #1B2A42 */
+
+  /* ---- shadcn semantic tokens, mapped from brand tokens ---- */
+  --background: var(--serenity-50);
+  --foreground: var(--serenity-900);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--serenity-900);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--serenity-900);
+  --primary: var(--serenity-600);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: var(--serenity-200);
+  --secondary-foreground: var(--serenity-900);
+  --muted: var(--serenity-200);
+  --muted-foreground: oklch(0.525 0.045 261.4); /* #5C6B85 */
+  --accent: oklch(0.936 0.016 262.8); /* #E4EAF5 */
+  --accent-foreground: var(--serenity-900);
+  --border: var(--serenity-200);
+  --input: var(--serenity-200);
+  --ring: var(--serenity-600);
+  --radius: 0.625rem;
+
+  /* ---- semantic status: Pantone 2013 Emerald(성공) / 2007 Chili Pepper(오류·경고) ---- */
+  --success: oklch(0.593 0.118 169.8); /* #009473 */
+  --success-foreground: oklch(1 0 0);
+  --success-soft: oklch(0.955 0.021 173.9); /* #E3F5EF */
+  --destructive: oklch(0.451 0.162 18.7); /* #9B1B30 */
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-soft: oklch(0.939 0.019 5.3); /* #F7E6E9 */
+
+  /* ---- chart placeholders: serenity 색조 톤 램프. 실제 통계 위젯 만들 때 dataviz 스킬로 다시 검토 ---- */
+  --chart-1: oklch(0.85 0.07 262.7);
+  --chart-2: oklch(0.72 0.07 262.7);
+  --chart-3: oklch(0.58 0.07 262.7);
+  --chart-4: oklch(0.44 0.07 262.7);
+  --chart-5: oklch(0.3 0.07 262.7);
+}
+
+.dark {
+  /* 브랜드 스케일(50~900)에는 안 묶임 — 다크모드는 그보다 더 짙은 별도 톤 사용 */
+  --background: oklch(0.199 0.036 268.3); /* #0F1526 */
+  --foreground: oklch(0.954 0.015 260.7); /* #EAF0FA */
+  --card: oklch(0.243 0.042 267.4); /* #171F34 */
+  --card-foreground: oklch(0.954 0.015 260.7);
+  --popover: oklch(0.243 0.042 267.4);
+  --popover-foreground: oklch(0.954 0.015 260.7);
+  --primary: oklch(0.75 0.079 257.7); /* #8FB0E0 */
+  --primary-foreground: var(--serenity-900);
+  --secondary: oklch(0.336 0.052 265.9); /* #2A3652 */
+  --secondary-foreground: oklch(0.954 0.015 260.7);
+  --muted: oklch(0.336 0.052 265.9);
+  --muted-foreground: oklch(0.703 0.048 261.8); /* #8FA0BE */
+  --accent: oklch(0.312 0.058 263.2); /* #21304E */
+  --accent-foreground: oklch(0.954 0.015 260.7);
+  --border: oklch(0.336 0.052 265.9);
+  --input: oklch(0.336 0.052 265.9);
+  --ring: oklch(0.75 0.079 257.7);
+
+  --success: oklch(0.795 0.141 170.9); /* #3DD9B0 */
+  --success-foreground: oklch(0.199 0.036 268.3);
+  --success-soft: oklch(0.293 0.044 168.7); /* #123328 */
+  --destructive: oklch(0.677 0.161 11.4); /* #E8677E */
+  --destructive-foreground: oklch(0.199 0.036 268.3);
+  --destructive-soft: oklch(0.258 0.058 4.5); /* #3A1620 */
+
+  --chart-1: oklch(0.85 0.07 262.7);
+  --chart-2: oklch(0.72 0.07 262.7);
+  --chart-3: oklch(0.58 0.07 262.7);
+  --chart-4: oklch(0.44 0.07 262.7);
+  --chart-5: oklch(0.3 0.07 262.7);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

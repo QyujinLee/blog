@@ -1,0 +1,34 @@
+/*
+  Storybook은 Vite로 빌드되기 때문에 next/font/local(src/lib/fonts.ts)이 만들어주는
+  --font-pretendard / --font-jetbrains-mono 변수를 그대로 못 씀 — 같은 폰트 파일을
+  일반 @font-face로 다시 선언해서 실제 Next.js 앱과 동일하게 보이도록 맞춤.
+*/
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 400;
+  src: url("/fonts/Pretendard-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 600;
+  src: url("/fonts/Pretendard-SemiBold.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  font-weight: 700;
+  src: url("/fonts/Pretendard-Bold.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+:root {
+  --font-pretendard: "Pretendard";
+  --font-jetbrains-mono: "JetBrains Mono";
+}
