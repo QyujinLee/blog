@@ -52,6 +52,10 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 | **SSG + 온디맨드 ISR** | `/`, `/about`, `/posts`, `/posts/[slug]` | 빌드 시 백엔드 API로 데이터를 가져와 HTML로 사전 렌더링(`generateStaticParams`). 이후 콘텐츠가 바뀌면 전체 재빌드 대신 **해당 페이지만 재검증**(아래 참고). SEO 대상 페이지 전부 여기 해당 |
 | **클라이언트 렌더링(CSR)** | `/search`, `/posts/new`, `/posts/[slug]/edit` | 요청 시점 데이터(검색어, 인증 상태)라 사전 렌더링 의미 없음. 브라우저에서 API 호출로 채움 |
 
+**이 Next.js 버전(16.2, `cacheComponents` 미사용)은 `fetch`가 기본적으로 캐시되지 않음** — SSG 대상 페이지(`/`, `/about`, `/posts`, `/posts/[slug]`)에서 백엔드를 호출할 땐 반드시 `{ cache: 'force-cache' }`를 명시해야 빌드/재검증 시점에만 데이터를 가져오고 그 사이엔 캐시된 결과를 씀. 빠뜨리면 매 요청마다 Spring Boot를 호출하는 사실상 SSR이 되어버려 Render 콜드스타트 문제가 그대로 노출되고 온디맨드 ISR의 이점도 사라짐(단, 아래 "숨김 글 미리보기" Draft Mode가 켜진 요청은 이 옵션과 무관하게 항상 우회됨 — 의도된 동작).
+
+메인(`/`)의 통계 위젯(`stats-widget.tsx`)은 SSG 스냅샷에 포함하지 않고 댓글/좋아요처럼 **클라이언트 아일랜드로 얹어 CSR**로 가져옴(`use-stats.ts`, TanStack Query) — 조회수/좋아요/방문은 글 CRUD가 아니라 재검증 트리거가 없으므로, SSG에 포함시키면 글을 며칠 안 쓰는 동안 그래프가 그대로 멈춰 있게 됨.
+
 글 상세(`/posts/[slug]`)는 본문만 SSG(+ISR)이고, **댓글 영역은 그 안에서도 항상 CSR**로 따로 불러옴 — 댓글은 아무 때나 방문자가 새로 달 수 있는 데이터라 사전 렌더링 대상이 아님 (조회수와 동일한 이유). 좋아요 하트는 조금 다름: 초기 카운트는 SSG로 같이 내려오고, `like-button.tsx`만 클라이언트 아일랜드로 얹혀서 sessionStorage 확인 + 클릭 처리만 담당 (별도 재조회 없음).
 
 **온디맨드 ISR 재검증**: 정적 export 때와 달리 "글 하나 바뀔 때마다 사이트 전체 재빌드"를 안 해도 됨(빌드 자체를 다시 안 함, Next.js가 캐시만 무효화하고 다음 요청 때 해당 페이지들을 재생성). `blog-api`가 글 발행/수정/삭제/숨김/고정 성공 시 `blog` 저장소의 `app/api/revalidate/route.ts`를 호출(`POST /api/revalidate`, `x-revalidate-secret` 헤더로 인증 — 쿼리스트링에 시크릿을 넣으면 로그에 남을 수 있어 헤더 사용). 어떤 글이 어떤 카테고리/태그/시리즈 페이지에 노출되는지 일일이 계산해서 선택적으로 무효화하는 대신, **`revalidatePath('/', 'layout')`로 루트 레이아웃 하위 전체를 한 번에 무효화** — 개인 블로그 규모에서 페이지 수가 많지 않아 이 방식이 더 단순하고 "이 글이 어디어디 노출되는지 빠짐없이 계산"하는 로직에서 생기는 버그 여지도 없음. 요청 바디는 필요 없음(무엇이 바뀌었는지 굳이 안 알려줘도 됨), 호출 자체가 트리거.
@@ -144,7 +148,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 ## 확정 사항 (사용자 결정)
 
 - 헤더 중앙 텍스트: `gyujin's log`
-- 푸터: `© <연도> gyujin` 카피라이트 + `gyujin89@gmail.com` 연락처
+- 푸터: `Copyright © <연도> gyujin. All rights reserved.` + `gyujin89@gmail.com` 연락처(`mailto:` 링크). 저작권자는 **개인 본인** — 소속 회사명을 쓰지 않음(개인 블로그라 회사가 저작권자가 아님)
 - 카테고리 목록 = **아코디언**: 클릭 시 하위에 **그 카테고리에 속한 해시태그 목록**이 펼쳐짐(`#태그명 (글 개수)` 형식, shadcn Accordion). 글 제목이 아니라 태그를 보여주는 이유는 아코디언을 "다음 탐색 단계로 좁혀가는 입구"로 쓰기 위함 — 태그 클릭 시 `/search?tags=태그명`으로 라우팅해 그 태그의 글 목록을 보여줌. 이 목록/개수 데이터는 별도 API 없이, 어차피 SSG 렌더링 시 가져오는 전체 글 목록(`GET /posts`)을 `category` → `tags` 순으로 클라이언트에서 그룹핑/카운트해 구성 — `GET /categories`는 이거 말고 글쓰기 화면 자동완성 전용
 - 프로필 사진 = 우선 플레이스홀더(이니셜 아바타), 실제 사진은 추후 교체
 - 메인 페이지는 GitHub 프로필처럼: 소개 글 + 대표(핀 고정) 글 목록
@@ -198,6 +202,16 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 로그인 버튼은 헤더 우측 상단에 항상 노출(비로그인 시) — 댓글 기능 때문에 방문자도 로그인해야 하므로 더는 숨길 이유가 없음. 로그인 상태면 버튼 대신 아바타/이름 + 로그아웃으로 대체 (자세한 내용은 "로그인 모달" 섹션)
 - `/posts/new`, `/posts/[slug]/edit`는 CSR 페이지라 `use-session.ts` 조회가 끝나기 전엔 로딩 스켈레톤을 보여주고, 조회 완료 후 `isOwner`가 아니면 로그인 모달을 열고 홈(`/`)으로 리다이렉트 (세션 확인 전에 폼이 잠깐 보이는 걸 방지)
 
+## 숨김 글 미리보기 (Draft Mode)
+
+`/posts/[slug]`가 SSG라 페이지를 렌더링하는 서버 코드는 요청자가 누군지 알 수 없음. 그래서 소유자가 자기 글을 숨겨도(`hidden: true`), 그 상세 페이지는 여전히 익명 요청으로 캐시/재생성되고 백엔드는 hidden 글에 항상 404를 돌려줌(`GET /posts/{slug}`는 hidden이면 OWNER만 조회 가능 — `blog-api-plan.md` 참고) — 결과적으로 소유자 본인도 숨긴 글을 다시 볼 방법이 없어짐. 새 페이지나 라이브러리 없이 Next.js 내장 **Draft Mode**로 해결:
+
+- 소유자 이메일/비밀번호 로그인 성공 시(`login/route.ts`) JWT 쿠키 설정과 함께 `draftMode().enable()`도 호출 — 이 브라우저에만 draft 쿠키(`__prerender_bypass`)가 심어짐
+- `logout/route.ts`는 대칭적으로 `draftMode().disable()` 호출
+- Draft Mode가 켜진 요청은 Next.js가 모든 `fetch` 캐시를 자동으로 우회함(`{ cache: 'force-cache' }` 옵션과 무관하게 항상 네트워크로 감) — 페이지 컴포넌트는 `draftMode()`의 `isEnabled`를 확인해서, 켜져 있으면 쿠키의 JWT를 `Authorization` 헤더로 실어 백엔드에 요청(hidden 글도 응답에 포함), 꺼져 있으면 기존처럼 익명 요청
+- 이 우회는 소유자 세션에만 적용되고 다른 방문자는 그대로 캐시된/404 버전을 봄
+- `GET /posts` 목록도 같은 원리로 OWNER `Authorization`이 실려오면 hidden 글을 포함해서 응답 — 소유자가 목록에서 자기 숨김 글을 찾아 들어갈 수 있게 함(`blog-api-plan.md` 참고)
+
 ## 로그인 모달
 
 로그인은 페이지가 아니라 **모달**(shadcn `Dialog`) — 어느 페이지에서든 페이지 이동 없이 뜨고 닫힘.
@@ -222,11 +236,11 @@ Auth.js 같은 라이브러리 없이 Next.js Route Handler로 직접 구현. �
 
 | Route Handler | 역할 |
 |---|---|
-| `login/route.ts` | 이메일+비밀번호를 받아 Spring Boot에 검증 요청 → JWT 받아 httpOnly 쿠키 설정 (소유자 전용) |
+| `login/route.ts` | 이메일+비밀번호를 받아 Spring Boot에 검증 요청 → JWT 받아 httpOnly 쿠키 설정 + `draftMode().enable()`(숨김 글 미리보기용, "숨김 글 미리보기" 섹션 참고) (소유자 전용) |
 | `google/route.ts` | Google OAuth 동의 화면으로 리다이렉트. CSRF 방지용 `state` 값 + 로그인 모달을 띄웠던 원래 경로(리퍼러)를 짧은 쿠키에 저장 |
 | `google/callback/route.ts` | Google이 돌려준 `code`를 서버에서 Google과 직접 교환해 프로필(이메일/이름/사진) 획득 → `state` 검증 → Spring Boot에 로그인/가입 요청 → JWT 받아 httpOnly 쿠키 설정 → 저장해둔 원래 경로로 리다이렉트 |
 | `session/route.ts` | 쿠키의 JWT를 그대로 Spring Boot `GET /auth/me`에 전달해 위임 검증 → `{ isAuthenticated, role, name? }` 응답을 그대로 중계 (토큰 자체는 절대 프론트 응답에 안 실음) |
-| `logout/route.ts` | 쿠키 삭제 |
+| `logout/route.ts` | 쿠키 삭제 + `draftMode().disable()` |
 
 - 쿠키 속성: `httpOnly`, `Secure`, `SameSite=Lax`
 - **JWT 서명 검증은 Next.js가 하지 않음** — Spring Boot에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 Spring Boot가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 Spring Boot 한 곳에만 존재
@@ -378,7 +392,7 @@ type Comment = {
 | 댓글 | 자체 구현(giscus 아님) — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템", "인증 구현" 섹션 참고 (백엔드 트랙) |
 | 글 추천(좋아요) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지. 상세는 "글 추천(좋아요)" 섹션 참고 (백엔드 트랙) |
 | Swagger | 백엔드에 `springdoc-openapi` 추가, `/swagger-ui`로 API 문서 자동 노출 (백엔드 트랙) |
-| 홈페이지 방문자/인기글 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 방문 추이 그래프. shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
+| 홈페이지 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 글 조회 추이 그래프(일별 조회수 합계 — 순수 방문자 수는 아님, `blog-api-plan.md`의 `DailyVisit` 참고). shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
 | README 구성 | 아키텍처 다이어그램(mermaid), 기술 스택 뱃지, 스크린샷, 라이브 데모 링크, 로컬 실행법 정리 |
 | SEO / 메타데이터 | 글 상세는 SSG+ISR로 사전 렌더링되어 크롤링 문제 없음. 공통 `lib/metadata.ts`로 `title`/`description`(=`summary` 재사용)/`og:site_name`/`twitter:card`/canonical을 페이지마다 일관되게 생성. `app/sitemap.ts` + `app/robots.ts`(Next.js 내장 컨벤션, ISR로 캐시). `/search`는 CSR라 색인 대상 아님 — 별도 작업 불필요 |
 | 구조화된 데이터(JSON-LD) | 글 상세: `BlogPosting`(제목/작성일/수정일/작성자/대표이미지). 홈/소개: `Person`. 검색결과 리치 스니펫 노출용 |
@@ -435,7 +449,7 @@ src/
       categories/route.ts            # 카테고리 목록(자동완성용) 프록시
       tags/route.ts                  # 태그 목록(자동완성용) 프록시
       stats/popular-posts/route.ts     # 인기글 TOP N 프록시
-      stats/visits/route.ts            # 방문 추이 프록시
+      stats/visits/route.ts            # 글 조회 추이 프록시
       comments/[id]/route.ts          # 댓글 삭제(소유자) 프록시
       images/route.ts                # 이미지 업로드 프록시
       resume/route.ts                 # 이력서 업로드/조회 프록시
@@ -471,7 +485,7 @@ src/
       owner-actions.tsx               # isOwner일 때만 노출되는 수정/삭제/숨김/고정 툴바
       delete-confirm-dialog.tsx         # shadcn AlertDialog — 글/댓글 삭제 공용 확인 모달
     home/
-      stats-widget.tsx              # 인기글 TOP5 + 방문 추이 (shadcn chart)
+      stats-widget.tsx              # 인기글 TOP5 + 글 조회 추이 (shadcn chart, CSR — "페이지별 렌더링 전략" 섹션 참고)
     theme-toggle.tsx                # next-themes 다크모드 토글
     loading-overlay.tsx             # 딤 배경 + loading-logo.svg 중앙 배치 — 라우팅(app/loading.tsx)과 mutation pending 상태 공용 ("로딩 UI" 섹션 참고)
     ui/                           # shadcn 컴포넌트 (accordion, avatar, separator, button, chart, ...)
@@ -514,13 +528,13 @@ e2e/                              # Playwright E2E 테스트
 - [x] `switch` — 다크모드 토글
 - [x] `badge` — 태그, 최근 수정일 뱃지
 - [ ] `textarea`, `form` — 로그인/글 작성 폼 (관리자 기능 단계에서 추가)
-- [ ] `chart` — 홈페이지 방문 추이/인기글 통계 (Recharts 래퍼)
+- [ ] `chart` — 홈페이지 글 조회 추이/인기글 통계 (Recharts 래퍼)
 - [ ] `command`, `popover` — `category-combobox.tsx`/`tag-input.tsx` 자동완성 (shadcn 콤보박스는 이 둘의 조합 패턴)
-- [ ] `sheet` — 모바일 햄버거 메뉴 드로어 (`mobile-nav.tsx`)
+- [x] `sheet` — 모바일 햄버거 메뉴 드로어 (`mobile-nav.tsx`)
 - [ ] `dialog` — 로그인 모달 (`login-modal.tsx`)
 - [ ] `alert-dialog` — 삭제 확인 모달 (`delete-confirm-dialog.tsx`)
 
-나머지(`textarea`/`form`/`chart`/`command`/`popover`/`sheet`/`dialog`/`alert-dialog`)는 해당 기능 만들 때 그때그때 `npx shadcn@latest add <이름>`으로 추가.
+나머지(`textarea`/`form`/`chart`/`command`/`popover`/`dialog`/`alert-dialog`)는 해당 기능 만들 때 그때그때 `npx shadcn@latest add <이름>`으로 추가.
 
 추가 npm 의존성: `@tanstack/react-query`(v5, 서버 상태 관리 — 1차 단계부터 필요), `zustand`(로그인 모달 등 순수 클라이언트 UI 상태), `next-themes`(다크모드), `react-markdown` `remark-gfm` `rehype-pretty-code`(마크다운/코드 하이라이트)
 
@@ -542,16 +556,16 @@ e2e/                              # Playwright E2E 테스트
 ## 다음 단계 (단계별)
 
 **1차 — 레이아웃/뼈대**
-1. [x] shadcn 컴포넌트 설치 — `accordion avatar separator switch badge` + `button input sonner tooltip` 완료, `chart`/`sheet`는 아직("필요 shadcn 컴포넌트" 체크리스트 참고)
-2. [ ] `@tanstack/react-query` 설치, `lib/query-client.ts` + `app/providers.tsx` 작성해 `app/layout.tsx`에 연결
-3. [ ] `src/data/categories.ts` 목업 데이터 작성
+1. [x] shadcn 컴포넌트 설치 — `accordion avatar separator switch badge` + `button input sonner tooltip` + `sheet` 완료, `chart`는 아직("필요 shadcn 컴포넌트" 체크리스트 참고)
+2. [x] `@tanstack/react-query` 설치, `lib/query-client.ts` + `app/providers.tsx` 작성해 `app/layout.tsx`에 연결
+3. [x] `src/data/categories.ts` 목업 데이터 작성
 4. [x] Pretendard/JetBrains Mono 폰트 파일을 `assets/fonts/`에 두고 `lib/fonts.ts`(`next/font/local`)로 로드, "비주얼 아이덴티티" 섹션 팔레트를 shadcn `globals.css` 토큰에 매핑
 4-1. [x] (계획에 없었지만 먼저 진행) `app/loading.tsx` + `components/loading-overlay.tsx` — "로딩 UI" 섹션 참고
 4-2. [x] (계획에 없었지만 먼저 진행) `app/icon.png` / `app/apple-icon.png` 파비콘
-5. [ ] 레이아웃 구현: `header.tsx`(다크모드 토글 + `use-scroll-collapse.ts`로 sticky 컴팩트 전환 포함) / `footer.tsx` / `profile-card.tsx` / `category-nav.tsx` / `sidebar.tsx` / `mobile-nav.tsx`(햄버거 + Sheet)
+5. [x] 레이아웃 구현: `header.tsx`(다크모드 토글 + `use-scroll-collapse.ts`로 sticky 컴팩트 전환 포함) / `footer.tsx` / `profile-card.tsx` / `category-nav.tsx` / `sidebar.tsx` / `mobile-nav.tsx`(햄버거 + Sheet)
 6. [x] `next-themes` 세팅, 다크모드 토글 동작 확인 (`theme-toggle.tsx`)
-7. [ ] `app/layout.tsx` 조립 + 메인(`/`) 페이지 구성 (소개 + 대표 글 자리 + 통계 위젯 자리, 데이터는 목업)
-8. [ ] `/about` 페이지 작성 (하드코딩 텍스트 + 이력서 다운로드 버튼, 이력서 URL은 임시 하드코딩)
+7. [x] `app/layout.tsx` 조립 + 메인(`/`) 페이지 구성 (소개 + 대표 글 자리 + 통계 위젯 자리, 데이터는 목업)
+8. [x] `/about` 페이지 작성 (하드코딩 텍스트 + 이력서 다운로드 버튼, 이력서 URL은 임시 하드코딩)
 
 **2차 — 글 콘텐츠 기능**
 9. `markdown-renderer.tsx`(`react-markdown` + `remark-gfm` + `rehype-pretty-code`) + 코드 복사 버튼 + `img` 렌더러를 `next/image`로 교체

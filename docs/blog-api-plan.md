@@ -27,7 +27,7 @@
 | `POST /posts/{slug}/like` | 없음 — 인증 개념 자체가 없는 기능, Redis IP+day로만 가벼운 어뷰징 방지 |
 | `POST /auth/login` | 비밀번호 자체가 보호 수단 + Redis 기반 IP별 시도 횟수 제한 |
 | `POST /auth/google` | **`X-Internal-Secret` 헤더 필수** — Next.js BFF만 아는 공유 시크릿. 이게 없으면 "이 이메일로 로그인시켜줘"라는 요청을 아무나 보낼 수 있어서(신원을 자체적으로 증명 안 하고 그냥 믿어주는 구조라) 반드시 필요 |
-| `GET /auth/me` | 없음(그냥 토큰 유효성만 검사, 유효하지 않으면 401) |
+| `GET /auth/me` | JWT(유효성만 검사, role 조건 없음 — 유효하지 않으면 401) |
 | 글 CRUD, 이력서 업로드 | JWT + `role: OWNER` |
 | 이미지 업로드 | JWT + `role: OWNER` (글 작성은 소유자만 하므로) |
 | 댓글 작성 | JWT + `role: VISITOR` 또는 `OWNER` (누구든 로그인만 하면) |
@@ -85,7 +85,7 @@ Post {
   body (text, 마크다운 원문)
   categorySlug (FK 아님, Category.slug 참조용 문자열)
   tags (List<String>, @ElementCollection)
-  seriesSlug (nullable)
+  seriesSlug (nullable)  // 클라이언트가 안 보냄 — 저장 시 seriesTitle을 slugify해 upsert(Category와 동일한 규칙), 같은 이름을 입력하면 항상 같은 slug로 묶임
   seriesTitle (nullable)
   seriesOrder (nullable, int)  // 클라이언트가 안 보냄 — 저장 시 같은 seriesSlug의 기존 최대 order + 1로 서버가 계산
   pinned (boolean)
@@ -121,14 +121,15 @@ DailyVisit {
   date (PK)
   count (long)
 }
-// 조회수 중복방지 통과한 요청마다 오늘 날짜 row를 +1 (홈페이지 방문 추이 그래프용)
+// 조회수 중복방지 통과한 요청마다 오늘 날짜 row를 +1 (홈페이지 "글 조회 추이" 그래프용)
+// 주의: "사이트 방문자 수"가 아니라 "글 조회수 집계"에 가까움 — 홈/about 등 글이 아닌 페이지 방문은 안 잡히고, 같은 사람이 그날 다른 글 2개를 보면 +2로 카운트됨. "최근 트래픽 추이"를 보여주는 용도로는 충분해 그대로 사용(정확한 UV 트래킹은 스코프 밖, YAGNI)
 ```
 
 ## API 엔드포인트
 
 | 메서드 | 경로 | 보호 | 설명 |
 |---|---|---|---|
-| GET | `/posts` | 공개 | 목록 (hidden 제외, 카테고리/태그/시리즈 필터) |
+| GET | `/posts` | 공개* | 목록 (*hidden 제외 — 유효한 OWNER `Authorization` 헤더가 실려오면 hidden 포함. 소유자가 프론트 Draft Mode로 요청할 때 자기 숨김 글도 목록에서 찾을 수 있게 하기 위함, `blog-structure-plan.md`의 "숨김 글 미리보기" 참고. 카테고리/태그/시리즈 필터) |
 | GET | `/posts/{slug}` | 공개* | 상세 (*hidden인 글은 OWNER만) |
 | POST | `/posts` | OWNER | 등록 (slug는 title로부터 서버가 자동 생성) |
 | PUT | `/posts/{slug}` | OWNER | 수정 |
@@ -149,7 +150,7 @@ DailyVisit {
 | GET | `/resume` | 공개 | 현재 이력서 URL |
 | POST | `/resume` | OWNER | 이력서 업로드 → R2 (기존 덮어쓰기), ≤10MB, PDF만 |
 | GET | `/stats/popular-posts` | 공개 | 조회수 TOP N |
-| GET | `/stats/visits` | 공개 | 최근 N일 방문 추이 (`DailyVisit`) |
+| GET | `/stats/visits` | 공개 | 최근 N일 글 조회 추이 (`DailyVisit`) |
 
 `slug`는 글 등록 시 title로부터 한 번만 생성되고 이후 title을 수정해도 바뀌지 않음 — URL 안정성 유지 + 프론트가 slug 하나로 조회/수정/삭제를 전부 처리할 수 있게(별도 id 조회 왕복 불필요).
 
