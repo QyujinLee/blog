@@ -10,20 +10,20 @@
    ▼
 ┌───────────────────────────┐   서버-to-서버 REST    ┌──────────────────────────────┐
 │  blog (이 저장소)            │   (Authorization 헤더)  │  blog-api (별도 저장소)          │
-│  Next.js Route Handler = BFF │ ──────────────────► │  Spring Boot + Spring Security │
-│  Vercel 배포 (SSG+ISR)      │ ◄──────────────────  │  Spring Data JPA + PostgreSQL  │
+│  Next.js Route Handler = BFF │ ──────────────────► │  NestJS + Prisma (TypeScript)  │
+│  Vercel 배포 (SSG+ISR)      │ ◄──────────────────  │  PostgreSQL + Redis            │
 │  push → Vercel 자동배포       │  on-demand revalidate │  Render(웹서비스) + Neon(DB, 우선)     │
 └───────────────────────────┘   웹훅 (글 CRUD 시)     └──────────────────────────────┘
 ```
 
 - 프론트: Next.js를 **Vercel**에 배포(정적 export 아님, Vercel의 서버리스 런타임 사용). 페이지는 SSG로 사전 렌더링하되, 글 CRUD 시 백엔드가 **온디맨드 ISR 재검증** 웹훅을 호출해 해당 페이지만 즉시 갱신 — 콘텐츠 하나 바뀔 때마다 전체 사이트를 재빌드할 필요 없음.
-- 백엔드: Spring Boot REST API, 별도 저장소·별도 배포(Render 무료 웹서비스, 512MB RAM/0.1CPU, 15분 미사용 시 슬립). **DB는 Render 자체 Postgres 대신 Neon 무료 Postgres 우선 사용** — Render 무료 Postgres는 일정 기간 후 삭제되는 정책이라 장기 운영 불가. Neon은 미사용 시 컴퓨트만 자동으로 잠들었다 다음 요청에 자동으로 깨어나 사람 개입이 필요 없음(Supabase는 7일 미사용 시 대시보드에서 수동 복구가 필요해 후순위).
-- **인증은 BFF(Backend-For-Frontend) 패턴**: 브라우저는 Spring Boot를 절대 직접 호출하지 않고, 항상 Next.js의 `app/api/*` Route Handler만 호출함. 그 Route Handler가 서버 코드로서 Spring Boot와 통신함.
-  - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 Spring Boot에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정/이력서 업로드 권한
-  - **방문자 로그인**: Google OAuth(자체 구현, 라이브러리 없이 Route Handler로 직접 처리) → Spring Boot가 JWT(role: `VISITOR`) 발급 → 마찬가지로 httpOnly 쿠키 저장. 댓글 작성 권한 (글 좋아요는 로그인 불필요, 아래 "글 추천(좋아요)" 참고)
+- 백엔드: NestJS + Prisma REST API, 별도 저장소·별도 배포(Render 무료 웹서비스, 512MB RAM/0.1CPU, 15분 미사용 시 슬립 — Node 런타임이라 재기동은 1~2초). **DB는 Render 자체 Postgres 대신 Neon 무료 Postgres 우선 사용** — Render 무료 Postgres는 일정 기간 후 삭제되는 정책이라 장기 운영 불가. Neon은 미사용 시 컴퓨트만 자동으로 잠들었다 다음 요청에 자동으로 깨어나 사람 개입이 필요 없음(Supabase는 7일 미사용 시 대시보드에서 수동 복구가 필요해 후순위).
+- **인증은 BFF(Backend-For-Frontend) 패턴**: 브라우저는 NestJS를 절대 직접 호출하지 않고, 항상 Next.js의 `app/api/*` Route Handler만 호출함. 그 Route Handler가 서버 코드로서 NestJS와 통신함.
+  - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 NestJS에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정/이력서 업로드 권한
+  - **방문자 로그인**: Google OAuth(자체 구현, 라이브러리 없이 Route Handler로 직접 처리) → NestJS가 JWT(role: `VISITOR`) 발급 → 마찬가지로 httpOnly 쿠키 저장. 댓글 작성 권한 (글 좋아요는 로그인 불필요, 아래 "글 추천(좋아요)" 참고)
   - 브라우저는 토큰 값을 절대 못 읽음(JS로 접근 불가) — 같은 오리진 요청 시 브라우저가 쿠키를 자동으로 첨부해줄 뿐. 클라이언트 컴포넌트(TanStack Query 훅 포함)는 그냥 `/api/...`를 평범하게 `fetch`하면 됨
-  - 로그인 여부를 화면에 표시해야 할 땐 `app/api/auth/session/route.ts`(Spring Boot에 위임 검증 후 `{ isAuthenticated, role }`만 반환)를 `hooks/use-session.ts`(TanStack Query)로 조회
-- **CORS는 사실상 불필요**: 브라우저가 Spring Boot에 직접 요청을 보내는 경우가 없으므로(전부 Next.js 서버를 경유), Spring Boot 쪽 CORS 설정은 없어도 됨. 오히려 Spring Boot를 Vercel 서버 쪽에서만 접근 가능하도록 더 좁혀도 됨 (선택사항).
+  - 로그인 여부를 화면에 표시해야 할 땐 `app/api/auth/session/route.ts`(NestJS에 위임 검증 후 `{ isAuthenticated, role }`만 반환)를 `hooks/use-session.ts`(TanStack Query)로 조회
+- **CORS는 사실상 불필요**: 브라우저가 NestJS에 직접 요청을 보내는 경우가 없으므로(전부 Next.js 서버를 경유), NestJS 쪽 CORS 설정은 없어도 됨. 오히려 NestJS를 Vercel 서버 쪽에서만 접근 가능하도록 더 좁혀도 됨 (선택사항).
 
 > 이 문서(`blog` 저장소)는 프론트엔드 구조에 집중한다. 백엔드 상세 설계는 `blog-api` 저장소에서 별도로 문서화.
 
@@ -52,7 +52,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 | **SSG + 온디맨드 ISR** | `/`, `/about`, `/posts`, `/posts/[slug]` | 빌드 시 백엔드 API로 데이터를 가져와 HTML로 사전 렌더링(`generateStaticParams`). 이후 콘텐츠가 바뀌면 전체 재빌드 대신 **해당 페이지만 재검증**(아래 참고). SEO 대상 페이지 전부 여기 해당 |
 | **클라이언트 렌더링(CSR)** | `/search`, `/posts/new`, `/posts/[slug]/edit` | 요청 시점 데이터(검색어, 인증 상태)라 사전 렌더링 의미 없음. 브라우저에서 API 호출로 채움 |
 
-**이 Next.js 버전(16.2, `cacheComponents` 미사용)은 `fetch`가 기본적으로 캐시되지 않음** — SSG 대상 페이지(`/`, `/about`, `/posts`, `/posts/[slug]`)에서 백엔드를 호출할 땐 반드시 `{ cache: 'force-cache' }`를 명시해야 빌드/재검증 시점에만 데이터를 가져오고 그 사이엔 캐시된 결과를 씀. 빠뜨리면 매 요청마다 Spring Boot를 호출하는 사실상 SSR이 되어버려 Render 콜드스타트 문제가 그대로 노출되고 온디맨드 ISR의 이점도 사라짐(단, 아래 "숨김 글 미리보기" Draft Mode가 켜진 요청은 이 옵션과 무관하게 항상 우회됨 — 의도된 동작).
+**이 Next.js 버전(16.2, `cacheComponents` 미사용)은 `fetch`가 기본적으로 캐시되지 않음** — SSG 대상 페이지(`/`, `/about`, `/posts`, `/posts/[slug]`)에서 백엔드를 호출할 땐 반드시 `{ cache: 'force-cache' }`를 명시해야 빌드/재검증 시점에만 데이터를 가져오고 그 사이엔 캐시된 결과를 씀. 빠뜨리면 매 요청마다 NestJS를 호출하는 사실상 SSR이 되어버려 Render 콜드스타트 문제가 그대로 노출되고 온디맨드 ISR의 이점도 사라짐(단, 아래 "숨김 글 미리보기" Draft Mode가 켜진 요청은 이 옵션과 무관하게 항상 우회됨 — 의도된 동작).
 
 메인(`/`)의 통계 위젯(`stats-widget.tsx`)은 SSG 스냅샷에 포함하지 않고 댓글/좋아요처럼 **클라이언트 아일랜드로 얹어 CSR**로 가져옴(`use-stats.ts`, TanStack Query) — 조회수/좋아요/방문은 글 CRUD가 아니라 재검증 트리거가 없으므로, SSG에 포함시키면 글을 며칠 안 쓰는 동안 그래프가 그대로 멈춰 있게 됨.
 
@@ -154,8 +154,8 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 메인 페이지는 GitHub 프로필처럼: 소개 글 + 대표(핀 고정) 글 목록
 - 별도 `/admin` 관리자 화면 없음 — 일반 블로그와 동일한 UI, 로그인한 소유자에게만 같은 화면에 인라인으로 수정/삭제/숨김/고정 컨트롤 노출
 - 프론트: Next.js → **Vercel** 배포(SSG + 온디맨드 ISR), push 시 Vercel이 자동 빌드/배포. 백엔드가 글 CRUD 시 재검증 웹훅 호출
-- 백엔드: **Spring Boot**, 별도 저장소, **Render 무료 웹서비스**에 배포. DB는 Render가 아니라 **Neon 무료 Postgres**(우선, 자동 재개) — Supabase는 7일 미사용 시 수동 복구 필요해 후순위
-- 인증: 소유자는 **이메일+비밀번호**, 방문자는 **Google OAuth**(자체 구현, Auth.js 등 라이브러리 미사용) → **BFF + httpOnly 쿠키** 패턴. 브라우저는 Spring Boot를 직접 호출하지 않고 항상 Next.js `app/api/*`만 호출
+- 백엔드: **NestJS + Prisma**(TypeScript), 별도 저장소, **Render 무료 웹서비스**에 배포. DB는 Render가 아니라 **Neon 무료 Postgres**(우선, 자동 재개) — Supabase는 7일 미사용 시 수동 복구 필요해 후순위. 처음엔 Spring Boot로 설계했다가, Render 무료 티어에서 JVM 콜드스타트가 30~60초로 길고 프론트와 언어를 통일하는 이점이 커서 착수 직전에 NestJS로 변경(NestJS가 Spring Boot를 본떠 만든 프레임워크라 설계는 거의 그대로 유지됨 — 자세한 내용은 `blog-api` 저장소의 `docs/blog-api-plan.md`)
+- 인증: 소유자는 **이메일+비밀번호**, 방문자는 **Google OAuth**(자체 구현, Auth.js 등 라이브러리 미사용) → **BFF + httpOnly 쿠키** 패턴. 브라우저는 NestJS를 직접 호출하지 않고 항상 Next.js `app/api/*`만 호출
 - 소유자 로그인 브루트포스 방어: **기존 Redis** 재사용해 IP별 시도 횟수 카운트
 - 댓글 본문은 **순수 텍스트만** 렌더링 (마크다운/HTML 미허용, `white-space: pre-wrap`으로 줄바꿈만 유지) — XSS 방지
 - Google OAuth는 **미검증(unverified) 상태로 우선 출시**, 사용자 늘면 추후 검증 신청
@@ -204,13 +204,13 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 ## 숨김 글 미리보기 (Draft Mode)
 
-`/posts/[slug]`가 SSG라 페이지를 렌더링하는 서버 코드는 요청자가 누군지 알 수 없음. 그래서 소유자가 자기 글을 숨겨도(`hidden: true`), 그 상세 페이지는 여전히 익명 요청으로 캐시/재생성되고 백엔드는 hidden 글에 항상 404를 돌려줌(`GET /posts/{slug}`는 hidden이면 OWNER만 조회 가능 — `blog-api-plan.md` 참고) — 결과적으로 소유자 본인도 숨긴 글을 다시 볼 방법이 없어짐. 새 페이지나 라이브러리 없이 Next.js 내장 **Draft Mode**로 해결:
+`/posts/[slug]`가 SSG라 페이지를 렌더링하는 서버 코드는 요청자가 누군지 알 수 없음. 그래서 소유자가 자기 글을 숨겨도(`hidden: true`), 그 상세 페이지는 여전히 익명 요청으로 캐시/재생성되고 백엔드는 hidden 글에 항상 404를 돌려줌(`GET /posts/{slug}`는 hidden이면 OWNER만 조회 가능 — `blog-api` 저장소의 `docs/blog-api-plan.md` 참고) — 결과적으로 소유자 본인도 숨긴 글을 다시 볼 방법이 없어짐. 새 페이지나 라이브러리 없이 Next.js 내장 **Draft Mode**로 해결:
 
 - 소유자 이메일/비밀번호 로그인 성공 시(`login/route.ts`) JWT 쿠키 설정과 함께 `draftMode().enable()`도 호출 — 이 브라우저에만 draft 쿠키(`__prerender_bypass`)가 심어짐
 - `logout/route.ts`는 대칭적으로 `draftMode().disable()` 호출
 - Draft Mode가 켜진 요청은 Next.js가 모든 `fetch` 캐시를 자동으로 우회함(`{ cache: 'force-cache' }` 옵션과 무관하게 항상 네트워크로 감) — 페이지 컴포넌트는 `draftMode()`의 `isEnabled`를 확인해서, 켜져 있으면 쿠키의 JWT를 `Authorization` 헤더로 실어 백엔드에 요청(hidden 글도 응답에 포함), 꺼져 있으면 기존처럼 익명 요청
 - 이 우회는 소유자 세션에만 적용되고 다른 방문자는 그대로 캐시된/404 버전을 봄
-- `GET /posts` 목록도 같은 원리로 OWNER `Authorization`이 실려오면 hidden 글을 포함해서 응답 — 소유자가 목록에서 자기 숨김 글을 찾아 들어갈 수 있게 함(`blog-api-plan.md` 참고)
+- `GET /posts` 목록도 같은 원리로 OWNER `Authorization`이 실려오면 hidden 글을 포함해서 응답 — 소유자가 목록에서 자기 숨김 글을 찾아 들어갈 수 있게 함(`blog-api` 저장소의 `docs/blog-api-plan.md` 참고)
 
 ## 로그인 모달
 
@@ -236,16 +236,16 @@ Auth.js 같은 라이브러리 없이 Next.js Route Handler로 직접 구현. �
 
 | Route Handler | 역할 |
 |---|---|
-| `login/route.ts` | 이메일+비밀번호를 받아 Spring Boot에 검증 요청 → JWT 받아 httpOnly 쿠키 설정 + `draftMode().enable()`(숨김 글 미리보기용, "숨김 글 미리보기" 섹션 참고) (소유자 전용) |
+| `login/route.ts` | 이메일+비밀번호를 받아 NestJS에 검증 요청 → JWT 받아 httpOnly 쿠키 설정 + `draftMode().enable()`(숨김 글 미리보기용, "숨김 글 미리보기" 섹션 참고) (소유자 전용) |
 | `google/route.ts` | Google OAuth 동의 화면으로 리다이렉트. CSRF 방지용 `state` 값 + 로그인 모달을 띄웠던 원래 경로(리퍼러)를 짧은 쿠키에 저장 |
-| `google/callback/route.ts` | Google이 돌려준 `code`를 서버에서 Google과 직접 교환해 프로필(이메일/이름/사진) 획득 → `state` 검증 → Spring Boot에 로그인/가입 요청 → JWT 받아 httpOnly 쿠키 설정 → 저장해둔 원래 경로로 리다이렉트 |
-| `session/route.ts` | 쿠키의 JWT를 그대로 Spring Boot `GET /auth/me`에 전달해 위임 검증 → `{ isAuthenticated, role, name? }` 응답을 그대로 중계 (토큰 자체는 절대 프론트 응답에 안 실음) |
+| `google/callback/route.ts` | Google이 돌려준 `code`를 서버에서 Google과 직접 교환해 프로필(이메일/이름/사진) 획득 → `state` 검증 → NestJS에 로그인/가입 요청 → JWT 받아 httpOnly 쿠키 설정 → 저장해둔 원래 경로로 리다이렉트 |
+| `session/route.ts` | 쿠키의 JWT를 그대로 NestJS `GET /auth/me`에 전달해 위임 검증 → `{ isAuthenticated, role, name? }` 응답을 그대로 중계 (토큰 자체는 절대 프론트 응답에 안 실음) |
 | `logout/route.ts` | 쿠키 삭제 + `draftMode().disable()` |
 
 - 쿠키 속성: `httpOnly`, `Secure`, `SameSite=Lax`
-- **JWT 서명 검증은 Next.js가 하지 않음** — Spring Boot에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 Spring Boot가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 Spring Boot 한 곳에만 존재
-- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/posts/[slug]/comments`, `app/api/comments/*`, `app/api/resume/*` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 Spring Boot 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
-- 소유자 로그인 브루트포스 방어는 **Spring Boot `/auth/login` 쪽에서** Redis로 IP별 시도 횟수를 카운트해 처리(백엔드 트랙) — `login/route.ts`는 자격증명을 그대로 전달만 하는 얇은 프록시, 초과 시 Spring Boot가 429 반환하면 그대로 중계. Redis는 Spring Boot에서만 접근(Next.js는 직접 안 붙음)
+- **JWT 서명 검증은 Next.js가 하지 않음** — NestJS에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 NestJS가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 NestJS 한 곳에만 존재
+- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/posts/[slug]/comments`, `app/api/comments/*`, `app/api/resume/*` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 NestJS 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
+- 소유자 로그인 브루트포스 방어는 **NestJS `/auth/login` 쪽에서** Redis로 IP별 시도 횟수를 카운트해 처리(백엔드 트랙) — `login/route.ts`는 자격증명을 그대로 전달만 하는 얇은 프록시, 초과 시 NestJS가 429 반환하면 그대로 중계. Redis는 NestJS에서만 접근(Next.js는 직접 안 붙음)
 - JWT는 짧게 만료, 리프레시 토큰 없음 — 만료되면 인증 필요한 요청이 401 → 프론트가 로그아웃 처리 후 재로그인 유도
 
 ## 댓글 시스템
@@ -256,7 +256,7 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
 방문자가 Google 로그인 (httpOnly 쿠키 발급, BFF 경유)
   → 댓글 작성
   → 브라우저가 app/api/posts/[slug]/comments 호출 (쿠키 자동 첨부)
-  → Route Handler가 쿠키에서 JWT 꺼내 Spring Boot에 Authorization 헤더로 전달
+  → Route Handler가 쿠키에서 JWT 꺼내 NestJS에 Authorization 헤더로 전달
   → 댓글 목록은 클라이언트에서 재조회(TanStack Query, CSR)
 ```
 
@@ -274,7 +274,7 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
   → sessionStorage에 이미 누른 글인지 확인 (liked-posts: string[] of slugs)
   → 이미 눌렀으면 버튼 비활성화 상태로 아무 것도 안 함
   → 처음이면: sessionStorage에 slug 추가 + 화면에 즉시 낙관적으로 카운트 +1(재조회 없이 바로 반영)
-      + app/api/posts/[slug]/like(BFF) 호출 → Spring Boot가 likeCount 증가
+      + app/api/posts/[slug]/like(BFF) 호출 → NestJS가 likeCount 증가
 ```
 
 - **로그인 없음, 인증 불필요** — 좋아요 버튼은 누구나 클릭 가능
@@ -300,8 +300,8 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
   ```
   /about 페이지에서 소유자로 로그인된 상태로만 보이는 "이력서 교체" 버튼 클릭
     → app/api/resume/route.ts(BFF)로 PDF 업로드 (쿠키 자동 첨부)
-    → Route Handler가 Spring Boot에 Authorization 헤더 붙여 전달
-    → Spring Boot가 Cloudflare R2에 저장 (기존 파일 덮어쓰기, 고정 key 사용)
+    → Route Handler가 NestJS에 Authorization 헤더 붙여 전달
+    → NestJS가 Cloudflare R2에 저장 (기존 파일 덮어쓰기, 고정 key 사용)
     → About 페이지의 "이력서 다운로드" 버튼이 그 URL을 가리킴
   ```
 - 백엔드에는 이력서 URL을 조회하는 엔드포인트 하나만 있으면 됨 (`GET /api/resume` → 현재 URL 반환), 프론트에선 이것도 `app/api/resume/route.ts` GET으로 프록시
@@ -360,14 +360,14 @@ type Comment = {
 ```
 글쓰기 화면 "이미지 첨부" 클릭
   → app/api/images/route.ts(BFF)로 업로드 (쿠키 자동 첨부, 로그인한 본인만 가능)
-  → Route Handler가 Spring Boot에 Authorization 헤더 붙여 전달
-  → Spring Boot가 Cloudflare R2에 업로드
+  → Route Handler가 NestJS에 Authorization 헤더 붙여 전달
+  → NestJS가 Cloudflare R2에 업로드
   → R2가 반환한 공개 URL을 응답
   → 프론트 에디터가 커서 위치에 `![](url)` 마크다운으로 자동 삽입
 ```
 
 - 스토리지: **Cloudflare R2** (S3 호환 API, 저장용량 10GB까지 무료, egress 비용 없음)
-- Spring Boot 로컬 디스크에는 저장하지 않음 — Render 같은 PaaS는 재배포 시 파일시스템이 초기화될 수 있어 데이터 유실 위험
+- NestJS 로컬 디스크에는 저장하지 않음 — Render 같은 PaaS는 재배포 시 파일시스템이 초기화될 수 있어 데이터 유실 위험
 - 업로드 제한: **5MB, jpg/png/webp/gif만 허용** (프론트 1차 검증 + 백엔드 재검증)
 - 백엔드 저장소(`blog-api`) 작업 항목: R2 버킷 연동, 업로드 API(`POST /api/images`), 파일 크기/타입 검증
 - **업로드 시점엔 포맷 변환(WebP/AVIF) 안 함** — 원본(jpg/png/webp/gif) 그대로 R2에 저장. Vercel 배포라 `next/image` 최적화가 정상 동작하므로(정적 export 때와 달리 `unoptimized: true` 불필요) `next.config.ts`의 `images.remotePatterns`에 R2 도메인만 등록하면, 실제 화면에 그릴 때(서빙 시점) 브라우저에 맞는 포맷/사이즈로 자동 즉석 변환됨 — 업로드 시 미리 변환해두는 것과 결과는 비슷한데 별도 이미지 처리 라이브러리가 필요 없음. 원본을 그대로 두는 이유는 RSS 피드나 소셜 크롤러처럼 `next/image`를 거치지 않고 R2 URL을 직접 읽는 소비자와의 호환성 때문. 프로필 사진 등 정적 자산도 마찬가지로 수동 최적화(`npx @squoosh/cli`) 없이 원본만 넣으면 됨
@@ -391,8 +391,8 @@ type Comment = {
 | 조회수 카운터 | 글 상세 진입 시 `app/api/posts/[slug]/view`(BFF) 경유해 조회 기록 → Redis로 IP+글+day 단위 중복 방지 후 Postgres `viewCount` 증가 (백엔드 트랙) |
 | 댓글 | 자체 구현(giscus 아님) — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템", "인증 구현" 섹션 참고 (백엔드 트랙) |
 | 글 추천(좋아요) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지. 상세는 "글 추천(좋아요)" 섹션 참고 (백엔드 트랙) |
-| Swagger | 백엔드에 `springdoc-openapi` 추가, `/swagger-ui`로 API 문서 자동 노출 (백엔드 트랙) |
-| 홈페이지 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 글 조회 추이 그래프(일별 조회수 합계 — 순수 방문자 수는 아님, `blog-api-plan.md`의 `DailyVisit` 참고). shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
+| Swagger | 백엔드에 `@nestjs/swagger` 추가, `/docs`로 API 문서 자동 노출 (백엔드 트랙) |
+| 홈페이지 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 글 조회 추이 그래프(일별 조회수 합계 — 순수 방문자 수는 아님, `blog-api` 저장소 `docs/blog-api-plan.md`의 `DailyVisit` 참고). shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
 | README 구성 | 아키텍처 다이어그램(mermaid), 기술 스택 뱃지, 스크린샷, 라이브 데모 링크, 로컬 실행법 정리 |
 | SEO / 메타데이터 | 글 상세는 SSG+ISR로 사전 렌더링되어 크롤링 문제 없음. 공통 `lib/metadata.ts`로 `title`/`description`(=`summary` 재사용)/`og:site_name`/`twitter:card`/canonical을 페이지마다 일관되게 생성. `app/sitemap.ts` + `app/robots.ts`(Next.js 내장 컨벤션, ISR로 캐시). `/search`는 CSR라 색인 대상 아님 — 별도 작업 불필요 |
 | 구조화된 데이터(JSON-LD) | 글 상세: `BlogPosting`(제목/작성일/수정일/작성자/대표이미지). 홈/소개: `Person`. 검색결과 리치 스니펫 노출용 |
@@ -406,7 +406,7 @@ type Comment = {
 
 - 유닛 테스트: **Vitest** + React Testing Library — Jest보다 설정 간단하고 빠름, Vite/Next.js 생태계 기본 픽
 - E2E 테스트: **Playwright** — 로그인 → 글 작성 → 목록 반영 같은 핵심 플로우 검증
-- 백엔드(`blog-api`)는 별도로 JUnit5 + Mockito (Spring Boot 기본 포함) 사용
+- 백엔드(`blog-api`)는 별도로 **Jest** (NestJS 기본 포함) 사용
 
 ## Storybook (미니 디자인 시스템)
 
@@ -443,7 +443,7 @@ src/
       posts/route.ts                # 글 CRUD 프록시 (목록/등록)
       posts/[slug]/route.ts          # 글 수정/삭제/숨김/고정 프록시 (slug는 최초 생성 후 안 바뀌므로 식별자로 안정적)
       posts/[slug]/view/route.ts      # 조회수 기록 프록시
-      posts/[slug]/like/route.ts       # 좋아요 기록 프록시 (인증 불필요, Spring Boot로 단순 전달)
+      posts/[slug]/like/route.ts       # 좋아요 기록 프록시 (인증 불필요, NestJS로 단순 전달)
       posts/[slug]/comments/route.ts   # 해당 글 댓글 목록/작성 프록시
       posts/search/route.ts           # 검색 프록시
       categories/route.ts            # 카테고리 목록(자동완성용) 프록시
@@ -492,7 +492,7 @@ src/
     seo/
       json-ld.tsx                  # BlogPosting / Person 구조화 데이터 <script> 삽입
   lib/
-    api.ts                        # proxyToBackend(request, path) — Route Handler들이 공용으로 쓰는 Spring Boot 호출 헬퍼 (쿠키→Authorization 헤더 변환, 서명 검증은 안 함)
+    api.ts                        # proxyToBackend(request, path) — Route Handler들이 공용으로 쓰는 NestJS 호출 헬퍼 (쿠키→Authorization 헤더 변환, 서명 검증은 안 함)
     liked-posts.ts                  # sessionStorage에 좋아요 누른 slug 목록 읽기/쓰기 헬퍼 (get/has/add)
     metadata.ts                    # 페이지 공통 메타데이터(title/description/OG/canonical) 생성 헬퍼
     query-client.ts                 # TanStack Query QueryClient 인스턴스 설정
@@ -542,12 +542,12 @@ e2e/                              # Playwright E2E 테스트
 
 - **프론트 (`blog`)**: Vercel이 GitHub 저장소와 직접 연동 — `main` push 시 Vercel이 알아서 빌드+배포 (별도 GitHub Actions 배포 워크플로우 불필요). PR마다 미리보기 URL도 자동 생성됨.
   - 동적 라우트(`[slug]`)는 여전히 `generateStaticParams`로 빌드타임에 알려진 글을 미리 생성, 새 글은 첫 방문 시 자동 생성 후 캐시
-  - Vercel 환경변수(서버 전용, `NEXT_PUBLIC_` 아님): `API_URL`(Spring Boot 주소, 브라우저엔 노출 안 됨), `REVALIDATE_SECRET`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `INTERNAL_SECRET`(`google/callback/route.ts`가 `POST /auth/google` 호출 시 `X-Internal-Secret` 헤더로 보냄 — `blog-api`의 `INTERNAL_SECRET`과 동일한 값이어야 함, 기존 목록에 빠져 있던 항목) — JWT 서명 검증은 Spring Boot에 위임하므로 `JWT_SECRET`은 프론트에 불필요
+  - Vercel 환경변수(서버 전용, `NEXT_PUBLIC_` 아님): `API_URL`(NestJS 주소, 브라우저엔 노출 안 됨), `REVALIDATE_SECRET`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `INTERNAL_SECRET`(`google/callback/route.ts`가 `POST /auth/google` 호출 시 `X-Internal-Secret` 헤더로 보냄 — `blog-api`의 `INTERNAL_SECRET`과 동일한 값이어야 함, 기존 목록에 빠져 있던 항목) — JWT 서명 검증은 NestJS에 위임하므로 `JWT_SECRET`은 프론트에 불필요
   - 테스트/린트는 별도 가벼운 GitHub Actions 워크플로우(`.github/workflows/ci.yml`)로 PR 시 실행 — 배포와는 무관한 품질 게이트
 - **백엔드 (`blog-api`, 별도 저장소)**: Render **무료 웹서비스**에 배포, `main` push 시 Render 자동 배포. **DB는 Render가 아니라 Neon 무료 Postgres 우선**(Render 무료 DB는 일정 기간 후 삭제되는 정책이라 미사용).
   - 글 CRUD(등록/수정/삭제/숨김/고정) 성공 시 `POST https://<vercel-domain>/api/revalidate`(헤더: `x-revalidate-secret`, 바디 불필요) 호출 → `revalidatePath('/', 'layout')`로 전체 무효화
   - 무료 웹서비스 특성상 15분 미사용 시 슬립 → 첫 요청 콜드스타트 지연 감수 (트래픽 늘면 유료 전환, 대략 웹서비스+DB 합쳐 월 $13~16 선)
-  - CORS 설정 불필요 — 브라우저가 Spring Boot를 직접 호출하지 않으므로 (BFF가 전담)
+  - CORS 설정 불필요 — 브라우저가 NestJS를 직접 호출하지 않으므로 (BFF가 전담)
 
 ## 향후 고도화 아이디어 (지금 스코프 아님, 돈이 드는 것부터 나중으로 보류)
 
@@ -605,7 +605,7 @@ e2e/                              # Playwright E2E 테스트
 - R2 이미지 업로드 API(파일 크기/타입 서버 재검증), 이력서 업로드/조회 API
 - `GET /categories`, `GET /tags` (자동완성용)
 - 검색(Postgres full-text search, 제목/태그 가중치 + 정렬/카테고리/태그 필터 파라미터), 조회수 카운터(Redis 중복방지 + Postgres 집계), 통계 조회 API
-- `springdoc-openapi`로 Swagger 문서화
+- `@nestjs/swagger`로 Swagger 문서화
 - CORS 설정 불필요 (Next.js BFF만 호출하므로) — 대신 Vercel 서버발 요청만 받도록 좁히는 것도 선택적으로 고려
 - DB는 Neon 무료 Postgres 연동 우선 (Render 자체 DB 아님, Supabase는 7일 미사용 시 수동 복구 필요해 후순위)
 - 글 CRUD(등록/수정/삭제/숨김/고정) 성공 시 프론트 `/api/revalidate` 웹훅 호출해 온디맨드 ISR 재검증
