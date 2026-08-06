@@ -1,65 +1,69 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Sidebar } from "@/components/layout/sidebar";
+
+// TODO(2차 — 백엔드 연동): GET /posts?pinned=true 로 교체
+const pinnedPosts = [
+  {
+    slug: "spring-boot-jwt-auth",
+    title: "Spring Boot에서 JWT 인증 직접 구현하기",
+    summary: "라이브러리 없이 필터 체인부터 서명 검증까지 직접 붙여본 기록",
+    category: "백엔드",
+  },
+  {
+    slug: "nextjs-isr-revalidate",
+    title: "온디맨드 ISR로 재빌드 없이 콘텐츠 갱신하기",
+    summary: "글 하나 바뀔 때마다 전체 재빌드하지 않도록 웹훅으로 캐시만 무효화한 이야기",
+    category: "프론트엔드",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
+      <aside className="hidden md:block">
+        <div className="sticky top-20">
+          <Sidebar withProfile={false} />
+        </div>
+      </aside>
+
+      <div className="flex flex-col gap-10">
+        <section className="flex flex-col gap-3">
+          <h1 className="font-heading text-2xl font-bold">gyujin</h1>
+          <p className="text-muted-foreground">
+            실무에서 마주친 문제와 해결 과정을 정리합니다. 백엔드/프론트엔드를 오가며
+            부딪힌 것들을 기록해두는 공간이에요.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="font-heading text-lg font-semibold">대표 글</h2>
+          <ul className="flex flex-col gap-3">
+            {pinnedPosts.map((post) => (
+              <li key={post.slug}>
+                <Link
+                  href={`/posts/${post.slug}`}
+                  className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
+                >
+                  <Badge variant="secondary" className="w-fit">
+                    {post.category}
+                  </Badge>
+                  <span className="font-heading font-semibold">{post.title}</span>
+                  <span className="text-sm text-muted-foreground">{post.summary}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="font-heading text-lg font-semibold">통계</h2>
+          {/* TODO(4차 — 백엔드 연동): stats-widget.tsx로 교체, use-stats.ts(CSR)로 실제 데이터 조회 */}
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            인기글 TOP5 · 글 조회 추이 위젯 자리
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
