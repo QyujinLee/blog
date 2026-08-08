@@ -5,6 +5,10 @@ export type CategoryGroup = {
   tags: { name: string; count: number }[];
 };
 
+export function categoryLabel(slug: string): string {
+  return categories.find((category) => category.slug === slug)?.label ?? slug;
+}
+
 export const categories: CategoryGroup[] = [
   {
     slug: "backend",

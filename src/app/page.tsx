@@ -1,22 +1,11 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
+import { categoryLabel } from "@/data/categories";
+import { posts } from "@/data/posts";
 
-// TODO(2차 — 백엔드 연동): GET /posts?pinned=true 로 교체
-const pinnedPosts = [
-  {
-    slug: "spring-boot-jwt-auth",
-    title: "Spring Boot에서 JWT 인증 직접 구현하기",
-    summary: "라이브러리 없이 필터 체인부터 서명 검증까지 직접 붙여본 기록",
-    category: "백엔드",
-  },
-  {
-    slug: "nextjs-isr-revalidate",
-    title: "온디맨드 ISR로 재빌드 없이 콘텐츠 갱신하기",
-    summary: "글 하나 바뀔 때마다 전체 재빌드하지 않도록 웹훅으로 캐시만 무효화한 이야기",
-    category: "프론트엔드",
-  },
-];
+// TODO(4차 — 백엔드 연동): GET /posts?pinned=true 로 교체
+const pinnedPosts = posts.filter((post) => post.pinned && !post.hidden);
 
 export default function Home() {
   return (
@@ -46,7 +35,7 @@ export default function Home() {
                   className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
                 >
                   <Badge variant="secondary" className="w-fit">
-                    {post.category}
+                    {categoryLabel(post.category)}
                   </Badge>
                   <span className="font-heading font-semibold">{post.title}</span>
                   <span className="text-sm text-muted-foreground">{post.summary}</span>

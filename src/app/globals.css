@@ -133,3 +133,56 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  /* markdown-renderer.tsx가 렌더링한 글 본문 스타일 — 코드블럭 배경은 라이트/다크 공통으로
+     --serenity-900 고정 (docs/blog-structure-plan.md "비주얼 아이덴티티" 참고) */
+  .markdown-body {
+    @apply flex flex-col gap-4 leading-relaxed;
+  }
+  .markdown-body > :first-child {
+    @apply mt-0;
+  }
+  .markdown-body h2 {
+    @apply mt-8 scroll-mt-24 font-heading text-xl font-bold;
+  }
+  .markdown-body h3 {
+    @apply mt-6 scroll-mt-24 font-heading text-lg font-semibold;
+  }
+  .markdown-body a {
+    @apply text-primary underline underline-offset-2 hover:no-underline;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-6;
+  }
+  .markdown-body ol {
+    @apply list-decimal pl-6;
+  }
+  .markdown-body blockquote {
+    @apply border-l-4 border-border pl-4 text-muted-foreground italic;
+  }
+  .markdown-body hr {
+    @apply border-border;
+  }
+  .markdown-body table {
+    @apply w-full border-collapse text-sm;
+  }
+  .markdown-body th,
+  .markdown-body td {
+    @apply border border-border px-3 py-2 text-left;
+  }
+  .markdown-body th {
+    @apply bg-muted font-semibold;
+  }
+  .markdown-body code {
+    @apply rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+  .markdown-body pre {
+    @apply overflow-x-auto rounded-lg p-4 font-mono text-sm;
+    background: var(--serenity-900);
+    color: var(--serenity-50);
+  }
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+}
