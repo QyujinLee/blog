@@ -571,7 +571,7 @@ e2e/                              # Playwright E2E 테스트
 9. [x] `markdown-renderer.tsx`(`react-markdown` + `remark-gfm` + `rehype-pretty-code`) + 코드 복사 버튼 + `img` 렌더러를 `next/image`로 교체
 10. [x] `table-of-contents.tsx` 구현, 글 상세 페이지에 배치
 11. [x] `tag-list.tsx`, `series-nav.tsx`, `related-posts.tsx`, `last-updated.tsx` 구현 (+ `/posts`, `/posts/[slug]` 페이지 신설, `src/data/posts.ts` 목업 데이터)
-12. `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션)
+12. [x] `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션) — `SITE_URL`은 `src/lib/site.ts`에 임시 플레이스홀더(`ponytail:` 주석), 배포 시 교체
 13. OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성
 14. `/search` 페이지: `use-posts.ts`(useQuery, `search-bar.tsx`의 Enter/버튼 submit 시에만 쿼리 갱신) + `AbortController`, 정렬 드롭다운 + 카테고리/태그 필터 UI (백엔드 검색 API 붙기 전까진 목업 데이터로 UI만 검증)
 15. `lib/metadata.ts` 공통 헬퍼 + `generateMetadata`로 페이지별 title/description(`summary` 재사용)/OG/canonical 설정
