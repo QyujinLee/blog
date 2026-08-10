@@ -46,3 +46,9 @@ storybook-static
 # vitest
 .vitest-attachments
 __screenshots__
+
+# playwright
+test-results
+playwright-report
+blob-report
+playwright/.cache

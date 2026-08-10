@@ -62,6 +62,8 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 **글 삭제 시 404 처리**: `/posts/[slug]` 페이지 컴포넌트는 백엔드가 `GET /posts/{slug}`에 404를 반환하면 Next.js의 `notFound()` 헬퍼를 호출해야 함 — 삭제된 글의 재검증된 페이지가 빈 화면이나 에러 대신 정상적인 404로 뜨게 하기 위함.
 
+> **알려진 한계 (E2E 테스트 작성 중 실제로 재현·확인함)**: `/posts/[slug]`처럼 `await params`가 필요한 async 페이지에서 `notFound()`를 호출하면, Next.js가 응답 헤더를 이미 스트리밍으로 보낸 뒤라 실제 HTTP 상태 코드는 200으로 남음(공식 문서에 명시된 동작 — [`loading.js` Status Codes](https://nextjs.org/docs/app/api-reference/file-conventions/loading#status-codes) 참고, 관련 이슈: [vercel/next.js#76474](https://github.com/vercel/next.js/issues/76474)). `generateStaticParams`/`loading.tsx` 유무와 무관하게 재현됨 — 직접 둘 다 제거해보고 확인. **SEO엔 실질적 영향 없음**: Next.js가 스트리밍된 404 응답에 `<meta name="robots" content="noindex">`를 자동으로 삽입해 검색엔진이 색인하지 않도록 막아줌(실제 응답에서 확인함). 진짜 404 상태 코드가 필요하면(컴플라이언스/분석 목적) `proxy`에서 존재 여부를 먼저 확인해야 하는데, 개인 블로그 규모에 비해 과한 복잡도라 도입 안 함.
+
 ## 레이아웃
 
 ```
@@ -143,7 +145,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 - **메인(`/`)**: 카테고리 아코디언만. 프로필 카드는 넣지 않음 — 메인 화면 자체가 이미 자기소개를 보여주는 GitHub 프로필 스타일이라 중복이기 때문.
 - **그 외 페이지(`/posts`, `/posts/[slug]`, `/search` 등)**: 프로필 카드(상단) + 카테고리 아코디언(하단) 둘 다 노출.
-- 카테고리 아코디언 목록 **맨 위**에 `/about`(소개 페이지) 링크를 고정으로 하나 더 둠 — 카테고리처럼 접히는 항목이 아니라 그냥 단일 링크
+- 카테고리 아코디언 목록 **맨 위**에 `/posts`(전체 글 목록), `/about`(소개 페이지) 링크를 고정으로 둠 — 카테고리처럼 접히는 항목이 아니라 그냥 단일 링크. (문서 리뷰 중 발견) `/posts` 자체는 원래부터 있었지만 헤더/사이드바 어디서도 링크가 없어 UI로는 도달 불가능했음 — E2E 테스트 작성 중 발견해 추가
 
 ## 확정 사항 (사용자 결정)
 
@@ -428,6 +430,7 @@ src/
     providers.tsx                  # QueryClientProvider('use client') — 루트 layout(서버 컴포넌트)에서 클라이언트 컴포넌트로 분리
     loading.tsx                    # 전 라우트 공통 로딩 폴백 — loading-overlay.tsx 렌더링 ("로딩 UI" 섹션 참고)
     error.tsx                     # 루트 에러 바운더리 ("에러 처리" 섹션 참고)
+    not-found.tsx                  # notFound() 및 매칭 안 되는 URL 전부에 대한 커스텀 404 UI(브랜드 스타일)
     page.tsx                      # 메인: 소개 + 대표 글
     posts/
       page.tsx                    # 전체 글 목록
@@ -471,7 +474,7 @@ src/
       sidebar.tsx                 # withProfile prop으로 프로필 노출 여부 제어. 데스크톱은 고정 배치, 모바일은 이 컴포넌트를 그대로 mobile-nav.tsx의 Sheet 안에 재사용
       mobile-nav.tsx               # 햄버거 버튼 + shadcn Sheet(왼쪽 슬라이드) 안에 sidebar.tsx 렌더링 — 버튼/Sheet 상태를 이 컴포넌트가 전부 캡슐화, `md:hidden`으로 768px 이상에선 자체적으로 숨김 (반대로 데스크톱 고정 사이드바 쪽은 `hidden md:block`)
       profile-card.tsx            # 아바타(플레이스홀더) + 소개 문구
-      category-nav.tsx            # 맨 위 고정 `/about` 링크 + Accordion 기반 카테고리 > 해시태그(#태그명 (개수)) 목록, 태그 클릭 시 `/search?tags=`로 이동
+      category-nav.tsx            # 맨 위 고정 `/posts`, `/about` 링크 + Accordion 기반 카테고리 > 해시태그(#태그명 (개수)) 목록, 태그 클릭 시 `/search?tags=`로 이동
       search-bar.tsx               # pill 모양 검색바(Enter/버튼 submit 시에만 검색, 내부에 초기화+검색 버튼) — 헤더와 `/search` 페이지 상단에서 재사용
     auth/
       login-modal.tsx               # shadcn Dialog — Google 로그인 버튼(주) + 이메일/비번 폼(관리자용, 기본 숨김). loginModalStore 상태로 열림/닫힘, app/layout.tsx에 한 번만 마운트
@@ -526,7 +529,8 @@ src/
     categories.ts                 # 카테고리 목업 데이터 (백엔드 연동 전까지 임시)
     posts.ts                      # 글 목업 데이터 (백엔드 연동 전까지 임시, `Post` 타입 정의도 여기)
 .storybook/                       # Storybook 설정
-e2e/                              # Playwright E2E 테스트
+e2e/                              # Playwright E2E 테스트 (navigation.spec.ts, search.spec.ts)
+playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromium만, webServer로 yarn dev 자동 기동
 ```
 
 컴포넌트 단위 유닛 테스트는 `*.test.tsx`로 대상 파일 옆에 배치 (Vitest Browser Mode + `vitest-browser-react`, "테스트" 섹션 참고).
@@ -596,10 +600,10 @@ e2e/                              # Playwright E2E 테스트
 16-1. [x] (계획에 없었지만 먼저 진행) `src/app/error.tsx` — 루트 에러 바운더리, "에러 처리" 섹션 참고
 17. [x] Vitest + `vitest-browser-react` 세팅, 레이아웃/렌더러 컴포넌트 유닛 테스트 — 이미 Storybook용 Vitest Browser Mode(실제 Playwright Chromium)가 설정돼 있어, 공식 문서 확인 결과 이 조합엔 `@testing-library/react`보다 `vitest-browser-react`가 새 프로젝트 권장 방식이라 이걸로 진행(플랜 초안엔 RTL로 적혀 있었지만 검증 후 변경, "테스트" 섹션 참고). `vitest.config.ts`에 `unit` 프로젝트 추가(+ `resolve.alias`로 `@/*` 매핑, 새 플러그인 의존성 없이 tsconfig 경로 재사용), `search-bar.test.tsx`(레이아웃) / `code-block-copy-button.test.tsx`(렌더러) 작성, `yarn test` 스크립트 추가. 전체 스위트(스토리북 11개 + 신규 2개) 27개 테스트 통과
 18. [x] Storybook 세팅 (`npx storybook@latest init`) — ui 컴포넌트 스토리 작성 완료(`Vitest` 연동 테스트 포함, 11개 스토리 파일 통과). `header`/`footer` 등 미구현 레이아웃 컴포넌트 스토리는 5번 항목 완료 후 추가
-19. `app/api/revalidate/route.ts` 구현, Vercel 프로젝트 연결 + `REVALIDATE_SECRET` 환경변수 설정, `yarn build`로 빌드 확인
-20. Playwright 세팅, 핵심 플로우 E2E 테스트 뼈대 작성 (백엔드 붙기 전까진 모킹 또는 보류)
-21. `.github/workflows/ci.yml` 작성 (PR 시 lint+test 실행, 배포는 Vercel이 전담)
-22. README 구성 (아키텍처 다이어그램, 기술 스택, 스크린샷, 데모 링크)
+19. [x] `app/api/revalidate/route.ts` 구현 — `x-revalidate-secret` 헤더 검증(시크릿 미설정 시 항상 거부) 후 `revalidatePath('/', 'layout')`. `yarn build` 확인(`ƒ` dynamic, request-time 헤더 사용이라 정상) + 로컬에서 무헤더/오답/정답/GET 405까지 curl로 실동작 검증. **Vercel 프로젝트 연결 + `REVALIDATE_SECRET` 환경변수 설정은 Vercel 계정 접근이 필요해 사용자가 직접 진행**(Vercel 대시보드 → 이 저장소 import → 프로젝트 설정 → Environment Variables에 `REVALIDATE_SECRET` 추가)
+20. [x] Playwright 세팅, 핵심 플로우 E2E 테스트 뼈대 작성 (백엔드 붙기 전까진 모킹 또는 보류) — 로그인/글쓰기는 4차 전까진 검증 불가라, 지금 실제로 동작하는 탐색/검색 플로우로 뼈대만 작성. `@playwright/test` 추가(vitest 브라우저 모드용 `playwright`와는 별개 패키지), `playwright.config.ts`(Chromium만 — 개인 블로그라 크로스브라우저 매트릭스는 과함), `e2e/navigation.spec.ts` + `e2e/search.spec.ts`(총 4개), `yarn test:e2e` 스크립트. 테스트 작성 중 실제 버그 2개 발견해 같이 수정: **(1)** 헤더/사이드바 어디에도 `/posts` 링크가 없어 UI로 도달 불가능했음 → `category-nav.tsx`에 "전체 글" 링크 추가. **(2)** `app/not-found.tsx`가 없어 `notFound()` 호출 시 Next.js 기본 영어 "This page could not be found" UI가 뜨고 있었음(사이트 전체가 한글인데) → 브랜드 스타일 맞춘 `not-found.tsx` 추가. 이 과정에서 `notFound()`의 HTTP 상태 코드 관련 알려진 한계도 발견("페이지별 렌더링 전략" 섹션에 기록)
+21. [x] `.github/workflows/ci.yml` 작성 (PR 시 lint+test 실행, 배포는 Vercel이 전담) — `yarn lint` + `tsc --noEmit`(빠르고 이번 세션에서 실제 타입 에러를 여러 번 잡아준 체크라 build 없이도 포함) + `yarn test`(Vitest) + `yarn test:e2e`(Playwright, `--with-deps chromium`만 설치 — 프로젝트가 Chromium만 쓰므로) + 실패 시 `playwright-report` 아티팩트 업로드. `.nvmrc` 버전으로 Node 세팅. **검증 한계**: `act` 등 로컬 GitHub Actions 러너가 없어 워크플로 자체의 실제 실행은 확인 못 함 — YAML 문법 검증(`pyyaml` 파싱)과 각 스텝 커맨드를 로컬에서 개별적으로 통과시키는 것까지만 확인, 실제 동작은 PR을 열어야 최종 확인됨
+22. [x] README 구성 (아키텍처 다이어그램, 기술 스택, 스크린샷, 데모 링크) — 기존 `create-next-app` 기본 템플릿 그대로였던 걸 전면 교체. mermaid 아키텍처 다이어그램(전체 아키텍처 섹션의 ASCII 다이어그램을 옮김), 기술 스택 표, `docs/screenshots/`에 실제로 캡처한 스크린샷 4장(홈/글 상세/검색/다크모드), 로컬 개발·테스트 명령어, `docs/blog-structure-plan.md` 링크. 데모 링크는 아직 미배포라 자리만 만들어두고 정직하게 명시. mermaid 문법은 GitHub에 푸시해야 최종 렌더링 확인 가능(로컬 mermaid 렌더러가 없어 소스 구조만 수동 검증)
 
 **4차 — 백엔드 연동** (인증, 글쓰기, 댓글, 좋아요, 통계 — 실제 `blog-api` 붙은 뒤)
 23. `app/api/auth/login`, `app/api/auth/session`, `app/api/auth/logout` 구현 (소유자 이메일+비번, httpOnly 쿠키)

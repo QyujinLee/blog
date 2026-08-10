@@ -11,6 +11,12 @@ export function CategoryNav() {
   return (
     <nav className="flex flex-col gap-1">
       <Link
+        href="/posts"
+        className="rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-muted hover:text-foreground"
+      >
+        전체 글
+      </Link>
+      <Link
         href="/about"
         className="rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-muted hover:text-foreground"
       >
