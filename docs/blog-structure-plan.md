@@ -572,8 +572,8 @@ e2e/                              # Playwright E2E 테스트
 10. [x] `table-of-contents.tsx` 구현, 글 상세 페이지에 배치
 11. [x] `tag-list.tsx`, `series-nav.tsx`, `related-posts.tsx`, `last-updated.tsx` 구현 (+ `/posts`, `/posts/[slug]` 페이지 신설, `src/data/posts.ts` 목업 데이터)
 12. [x] `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션) — `SITE_URL`은 `src/lib/site.ts`에 임시 플레이스홀더(`ponytail:` 주석), 배포 시 교체
-13. OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성
-14. `/search` 페이지: `use-posts.ts`(useQuery, `search-bar.tsx`의 Enter/버튼 submit 시에만 쿼리 갱신) + `AbortController`, 정렬 드롭다운 + 카테고리/태그 필터 UI (백엔드 검색 API 붙기 전까진 목업 데이터로 UI만 검증)
+13. [x] OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성 — `next/og`(satori)가 `ttf/otf/woff`만 지원해 기존 Pretendard `woff2`를 못 써서, 공식 Pretendard 저장소에서 Bold/SemiBold `otf`를 받아 `assets/fonts/`에 추가(OG 이미지 전용, 사이트 CSS 폰트 로딩과는 별개). ImageResponse는 CSS 커스텀 프로퍼티를 못 읽어 팔레트 hex를 직접 씀(컬러 하드코딩 금지 원칙의 예외)
+14. [x] `/search` 페이지: `use-posts.ts`(useQuery, `search-bar.tsx`의 Enter/버튼 submit 시에만 쿼리 갱신) + `AbortController`, 정렬 드롭다운 + 카테고리/태그 필터 UI (백엔드 검색 API 붙기 전까진 목업 데이터로 UI만 검증) — 정렬/체크박스는 "필요 shadcn 컴포넌트" 목록에 select/checkbox가 없어 네이티브 `<select>`/`<input type="checkbox">` 사용. `useSearchParams`는 정적 빌드 시 Suspense 경계 필수(공식 문서 확인)라 `search/page.tsx`(서버, Suspense) + `search-content.tsx`(클라이언트)로 분리
 15. `lib/metadata.ts` 공통 헬퍼 + `generateMetadata`로 페이지별 title/description(`summary` 재사용)/OG/canonical 설정
 16. `components/seo/json-ld.tsx` — 글 상세 `BlogPosting`, 홈/소개 `Person` 구조화 데이터 삽입
 
