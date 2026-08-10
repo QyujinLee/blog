@@ -1,6 +1,10 @@
 import { SITE_URL } from "@/lib/site";
 import { posts } from "@/data/posts";
 
+// Next.js 15+부터 GET 라우트 핸들러는 기본이 dynamic이라 명시적으로 캐시함.
+// revalidatePath('/', 'layout') 재검증 웹훅은 페이지 트리만 갱신해 이 경로는 못 건드리므로 시간 기반으로 별도 관리.
+export const revalidate = 3600;
+
 function escapeXml(value: string): string {
   return value.replace(/[<>&'"]/g, (char) => {
     switch (char) {

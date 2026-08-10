@@ -132,7 +132,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 ### 타이포그래피
 
-- **Pretendard** — 제목/본문. 무료(SIL Open Font License), 한글+라틴을 함께 잘 다루는 시스템 UI 대체 서체. `next/font/local`로 셀프호스팅(변수 폰트 1개 파일로 400/600/700 전 굵기 커버)
+- **Pretendard** — 제목/본문. 무료(SIL Open Font License), 한글+라틴을 함께 잘 다루는 시스템 UI 대체 서체. `next/font/local`로 셀프호스팅(정적 굵기별 `woff2` 3파일 — Regular/SemiBold/Bold — 로 400/600/700 커버. OG 이미지 생성 전용으로 Bold/SemiBold `otf` 2파일이 별도로 더 있음, "OG 이미지" 체크리스트 항목 참고 — `next/og`가 `woff2`를 지원하지 않아서)
 - **JetBrains Mono** — 코드블럭(`rehype-pretty-code`), 날짜, hex 코드 등 수치/기술적 텍스트. 무료, 숫자 0과 문자 O 구분이 뚜렷한 고정폭 서체
 
 ### 아이콘
@@ -411,7 +411,7 @@ type Comment = {
 
 ## 테스트
 
-- 유닛 테스트: **Vitest** + React Testing Library — Jest보다 설정 간단하고 빠름, Vite/Next.js 생태계 기본 픽
+- 유닛 테스트: **Vitest**(Browser Mode, 실제 Playwright Chromium) + **`vitest-browser-react`** — Jest보다 설정 간단하고 빠름, Vite/Next.js 생태계 기본 픽. 이미 Storybook 스토리 테스트가 이 Browser Mode 조합을 쓰고 있어서, 공식 문서가 새 프로젝트에 권장하는 `vitest-browser-react`로 통일(React Testing Library는 이 조합에서 동작은 하지만 Locator 자동 재시도 등 Browser Mode 전용 이점이 없음)
 - E2E 테스트: **Playwright** — 로그인 → 글 작성 → 목록 반영 같은 핵심 플로우 검증
 - 백엔드(`blog-api`)는 별도로 **Jest** (NestJS 기본 포함) 사용
 
@@ -427,16 +427,20 @@ src/
     layout.tsx                    # Header + Footer 뼈대 (Sidebar는 페이지별 구성) + Providers 래핑 + login-modal.tsx 전역 마운트
     providers.tsx                  # QueryClientProvider('use client') — 루트 layout(서버 컴포넌트)에서 클라이언트 컴포넌트로 분리
     loading.tsx                    # 전 라우트 공통 로딩 폴백 — loading-overlay.tsx 렌더링 ("로딩 UI" 섹션 참고)
+    error.tsx                     # 루트 에러 바운더리 ("에러 처리" 섹션 참고)
     page.tsx                      # 메인: 소개 + 대표 글
     posts/
       page.tsx                    # 전체 글 목록
       new/page.tsx                 # 새 글 작성 (isOwner 아니면 로그인 모달 오픈 + 홈으로 리다이렉트)
       [slug]/
-        page.tsx                    # 글 상세
+        page.tsx                    # 글 상세 — generateStaticParams로 빌드타임 SSG
+        opengraph-image.tsx           # 글별 OG 이미지 자동 생성(`next/og`), 마찬가지로 generateStaticParams로 SSG
         edit/page.tsx                # 글 수정 (위와 동일 가드)
     about/page.tsx                 # 소개 페이지 (하드코딩 텍스트 + 이력서 다운로드, isOwner면 교체 버튼도 노출)
-    search/page.tsx                # 검색 결과 (q/category/tags 쿼리 파라미터로 통합 — 정렬 드롭다운 + 카테고리/태그 필터, "통합 검색" 섹션 참고)
-    rss.xml/route.ts               # RSS Route Handler (ISR 캐시)
+    search/
+      page.tsx                    # 서버 컴포넌트 — search-content.tsx를 Suspense로 감싸기만 함
+      search-content.tsx           # 실제 검색 UI/로직('use client') — useSearchParams는 정적 빌드 시 Suspense 필수라 분리 ("통합 검색" 섹션 참고)
+    rss.xml/route.ts               # RSS Route Handler — GET 핸들러는 Next 15+부터 기본 dynamic이라 `revalidate = 3600`으로 명시 캐시
     sitemap.ts                    # Next.js 내장 sitemap 컨벤션
     robots.ts                     # Next.js 내장 robots 컨벤션
     api/
@@ -501,27 +505,31 @@ src/
   lib/
     api.ts                        # proxyToBackend(request, path) — Route Handler들이 공용으로 쓰는 NestJS 호출 헬퍼 (쿠키→Authorization 헤더 변환, 서명 검증은 안 함)
     liked-posts.ts                  # sessionStorage에 좋아요 누른 slug 목록 읽기/쓰기 헬퍼 (get/has/add)
-    metadata.ts                    # 페이지 공통 메타데이터(title/description/OG/canonical) 생성 헬퍼
+    metadata.ts                    # 페이지 공통 메타데이터(title/description/OG/canonical) 생성 헬퍼 + PERSON_JSON_LD
+    site.ts                        # SITE_URL 상수 (배포 전 임시 플레이스홀더, 배포 시 교체)
+    extract-headings.ts             # 마크다운에서 h2/h3 파싱해 TOC 아이템(id 포함) 추출 — markdown-renderer.tsx는 이 id를 문서 순서대로 그대로 소비해 재계산 없이 항상 1:1 대응
+    slugify.ts                      # 헤딩 텍스트 → id 변환 헬퍼, extract-headings.ts 전용
     query-client.ts                 # TanStack Query QueryClient 인스턴스 설정
-    fonts.ts                        # next/font/local로 Pretendard(변수 폰트)/JetBrains Mono 로드 + CSS 변수 export
+    fonts.ts                        # next/font/local로 Pretendard 정적 굵기별 파일(400/600/700)/JetBrains Mono 로드 + CSS 변수 export
     login-modal-store.ts             # zustand — 로그인 모달 열림/닫힘 전역 상태 (isOpen, open(), close())
   assets/
-    fonts/                          # PretendardVariable.woff2, JetBrainsMono-Regular.woff2 등 폰트 파일
+    fonts/                          # Pretendard-{Regular,SemiBold,Bold}.woff2(사이트 전체), JetBrainsMono-Regular.woff2, Pretendard-{Bold,SemiBold}.otf(OG 이미지 전용, next/og가 woff2 미지원이라 별도)
   hooks/
     use-session.ts                  # `/api/auth/session` 조회 (useQuery) — isOwner/isVisitor 판단
     use-scroll-collapse.ts          # 스크롤 threshold 넘으면 true — 헤더 컴팩트 전환용 (passive 리스너)
     use-comments.ts                 # 댓글 목록/작성(`/api/posts/[slug]/comments`) + 삭제(`/api/comments/[id]`) (useQuery/useMutation)
-    use-posts.ts                    # 검색 결과, 글 CRUD 뮤테이션, 좋아요 뮤테이션(`/api/posts/[slug]/like`) (`/api/posts/*` 호출)
+    use-posts.ts                    # 검색 결과, 글 CRUD 뮤테이션, 좋아요 뮤테이션(`/api/posts/[slug]/like`) (`/api/posts/*` 호출) — 2차 시점엔 목업 데이터 검색/필터/정렬만 구현, 4차에서 실 API로 교체
     use-categories.ts                # 카테고리 자동완성 목록 (`/api/categories`)
     use-tags.ts                      # 태그 자동완성 목록 (`/api/tags`)
     use-stats.ts                     # 홈페이지 통계 위젯 데이터 (`/api/stats/*`)
   data/
     categories.ts                 # 카테고리 목업 데이터 (백엔드 연동 전까지 임시)
+    posts.ts                      # 글 목업 데이터 (백엔드 연동 전까지 임시, `Post` 타입 정의도 여기)
 .storybook/                       # Storybook 설정
 e2e/                              # Playwright E2E 테스트
 ```
 
-컴포넌트 단위 유닛 테스트는 `*.test.tsx`로 대상 파일 옆에 배치 (Vitest + React Testing Library).
+컴포넌트 단위 유닛 테스트는 `*.test.tsx`로 대상 파일 옆에 배치 (Vitest Browser Mode + `vitest-browser-react`, "테스트" 섹션 참고).
 
 ## 필요 shadcn 컴포넌트
 
@@ -577,16 +585,16 @@ e2e/                              # Playwright E2E 테스트
 **2차 — 글 콘텐츠 기능**
 9. [x] `markdown-renderer.tsx`(`react-markdown` + `remark-gfm` + `rehype-pretty-code`) + 코드 복사 버튼 + `img` 렌더러를 `next/image`로 교체
 10. [x] `table-of-contents.tsx` 구현, 글 상세 페이지에 배치
-11. [x] `tag-list.tsx`, `series-nav.tsx`, `related-posts.tsx`, `last-updated.tsx` 구현 (+ `/posts`, `/posts/[slug]` 페이지 신설, `src/data/posts.ts` 목업 데이터)
-12. [x] `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션) — `SITE_URL`은 `src/lib/site.ts`에 임시 플레이스홀더(`ponytail:` 주석), 배포 시 교체
-13. [x] OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성 — `next/og`(satori)가 `ttf/otf/woff`만 지원해 기존 Pretendard `woff2`를 못 써서, 공식 Pretendard 저장소에서 Bold/SemiBold `otf`를 받아 `assets/fonts/`에 추가(OG 이미지 전용, 사이트 CSS 폰트 로딩과는 별개). ImageResponse는 CSS 커스텀 프로퍼티를 못 읽어 팔레트 hex를 직접 씀(컬러 하드코딩 금지 원칙의 예외)
+11. [x] `tag-list.tsx`, `series-nav.tsx`, `related-posts.tsx`, `last-updated.tsx` 구현 (+ `/posts`, `/posts/[slug]` 페이지 신설, `src/data/posts.ts` 목업 데이터). (문서 리뷰 중 추가 수정) `/posts/[slug]`에 `generateStaticParams` 누락돼 있어 실제로는 SSG 아니라 매 요청 dynamic 렌더링이었던 걸 발견해 추가 — 이제 빌드 시 목업 글 4개 전부 정적 생성됨(`yarn build` 출력의 `●` 마커로 확인), "페이지별 렌더링 전략" 표의 SSG 전략과 일치
+12. [x] `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션) — `SITE_URL`은 `src/lib/site.ts`에 임시 플레이스홀더(`ponytail:` 주석), 배포 시 교체. (문서 리뷰 중 추가 수정) GET 라우트 핸들러는 Next 15+부터 기본이 dynamic이라(공식 체인지로그 확인) `rss.xml`이 실제로는 캐시 안 되고 있던 걸 발견 — `export const revalidate = 3600` 추가해 문서에 적힌 "ISR로 캐시"와 실제 동작을 맞춤
+13. [x] OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성 — `next/og`(satori)가 `ttf/otf/woff`만 지원해 기존 Pretendard `woff2`를 못 써서, 공식 Pretendard 저장소에서 Bold/SemiBold `otf`를 받아 `assets/fonts/`에 추가(OG 이미지 전용, 사이트 CSS 폰트 로딩과는 별개). ImageResponse는 CSS 커스텀 프로퍼티를 못 읽어 팔레트 hex를 직접 씀(컬러 하드코딩 금지 원칙의 예외). (문서 리뷰 중 추가 수정) 이 라우트도 `generateStaticParams` 누락으로 dynamic이었던 걸 11번과 같이 발견해 추가, 빌드 시 정적 생성 확인. JSON-LD `BlogPosting`에 빠져있던 `image` 필드도 이 OG 이미지 URL로 채움("포트폴리오 강화 기능" 표의 JSON-LD 행과 일치시킴)
 14. [x] `/search` 페이지: `use-posts.ts`(useQuery, `search-bar.tsx`의 Enter/버튼 submit 시에만 쿼리 갱신) + `AbortController`, 정렬 드롭다운 + 카테고리/태그 필터 UI (백엔드 검색 API 붙기 전까진 목업 데이터로 UI만 검증) — 정렬/체크박스는 "필요 shadcn 컴포넌트" 목록에 select/checkbox가 없어 네이티브 `<select>`/`<input type="checkbox">` 사용. `useSearchParams`는 정적 빌드 시 Suspense 경계 필수(공식 문서 확인)라 `search/page.tsx`(서버, Suspense) + `search-content.tsx`(클라이언트)로 분리
 15. [x] `lib/metadata.ts` 공통 헬퍼 + `generateMetadata`로 페이지별 title/description(`summary` 재사용)/OG/canonical 설정 — 동적 정보가 없는 `/about`, `/posts`는 공식 문서 권장대로 정적 `metadata` export 사용, 라우트 파라미터에 의존하는 `/posts/[slug]`만 `generateMetadata` 사용. `/search`는 CSR이라 색인 대상 아니라서 범위 제외("페이지별 렌더링 전략" 섹션 참고). 루트 레이아웃에 `metadataBase`(`SITE_URL`) + `title.template` 추가
 16. [x] `components/seo/json-ld.tsx` — 글 상세 `BlogPosting`, 홈/소개 `Person` 구조화 데이터 삽입 (공식 JSON-LD 가이드대로 `<script type="application/ld+json">` + `JSON.stringify(...).replace(/</g, "\\u003c")`로 XSS 방지)
 
 **3차 — 검증/문서화**
 16-1. [x] (계획에 없었지만 먼저 진행) `src/app/error.tsx` — 루트 에러 바운더리, "에러 처리" 섹션 참고
-17. Vitest + React Testing Library 세팅, 레이아웃/렌더러 컴포넌트 유닛 테스트
+17. [x] Vitest + `vitest-browser-react` 세팅, 레이아웃/렌더러 컴포넌트 유닛 테스트 — 이미 Storybook용 Vitest Browser Mode(실제 Playwright Chromium)가 설정돼 있어, 공식 문서 확인 결과 이 조합엔 `@testing-library/react`보다 `vitest-browser-react`가 새 프로젝트 권장 방식이라 이걸로 진행(플랜 초안엔 RTL로 적혀 있었지만 검증 후 변경, "테스트" 섹션 참고). `vitest.config.ts`에 `unit` 프로젝트 추가(+ `resolve.alias`로 `@/*` 매핑, 새 플러그인 의존성 없이 tsconfig 경로 재사용), `search-bar.test.tsx`(레이아웃) / `code-block-copy-button.test.tsx`(렌더러) 작성, `yarn test` 스크립트 추가. 전체 스위트(스토리북 11개 + 신규 2개) 27개 테스트 통과
 18. [x] Storybook 세팅 (`npx storybook@latest init`) — ui 컴포넌트 스토리 작성 완료(`Vitest` 연동 테스트 포함, 11개 스토리 파일 통과). `header`/`footer` 등 미구현 레이아웃 컴포넌트 스토리는 5번 항목 완료 후 추가
 19. `app/api/revalidate/route.ts` 구현, Vercel 프로젝트 연결 + `REVALIDATE_SECRET` 환경변수 설정, `yarn build`로 빌드 확인
 20. Playwright 세팅, 핵심 플로우 E2E 테스트 뼈대 작성 (백엔드 붙기 전까진 모킹 또는 보류)

@@ -14,6 +14,10 @@ import { extractHeadings } from "@/lib/extract-headings";
 import { buildMetadata } from "@/lib/metadata";
 import { SITE_URL } from "@/lib/site";
 
+export function generateStaticParams() {
+  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -52,6 +56,7 @@ export default async function PostPage({
           headline: post.title,
           description: post.summary,
           url: `${SITE_URL}/posts/${post.slug}`,
+          image: `${SITE_URL}/posts/${post.slug}/opengraph-image`,
           datePublished: post.createdAt,
           dateModified: post.updatedAt,
           author: { "@type": "Person", name: "gyujin", url: SITE_URL },

@@ -12,6 +12,11 @@ const dirname =
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(dirname, './src'),
+    },
+  },
   optimizeDeps: {
     include: ['@testing-library/dom', 'aria-query'],
   },
@@ -26,6 +31,19 @@ export default defineConfig({
         ],
         test: {
           name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['src/**/*.test.{ts,tsx}'],
           browser: {
             enabled: true,
             headless: true,

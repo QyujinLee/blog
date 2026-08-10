@@ -8,6 +8,10 @@ export const alt = "gyujin's log";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+export function generateStaticParams() {
+  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
+}
+
 export default async function Image({
   params,
 }: {
