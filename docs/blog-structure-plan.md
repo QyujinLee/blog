@@ -402,6 +402,13 @@ type Comment = {
 
 백엔드 트랙 표시된 항목(검색/조회수/Swagger)은 `blog-api` 저장소 작업. 이 저장소에선 그 API를 소비하는 프론트만 구현.
 
+## 에러 처리
+
+- **React 자체엔 에러 바운더리 컴포넌트가 없음** — `static getDerivedStateFromError`/`componentDidCatch`를 구현하는 클래스 컴포넌트를 직접 작성해야 함(React 19도 동일, 함수형 1st-party 대안 없음)
+- **`app/error.tsx`(Next.js 내장 컨벤션)**: 라우트 세그먼트를 감싸는 React 에러 바운더리를 자동으로 만들어줌 — 새 의존성 없이 대부분의 렌더링 에러를 커버하므로 루트에 하나(`src/app/error.tsx`) 두는 것으로 충분. `unstable_retry()`(Next 16.2 신규, `reset()`보다 우선 권장)로 재시도 버튼 구현
+  - 단, **이벤트 핸들러/비동기 콜백 에러는 못 잡음**(공식 문서 명시) — 라우트 전체가 아니라 위젯 하나만 부분적으로 복구하려는 경우에도 부족
+- **`react-error-boundary`는 4차(백엔드 연동)로 보류**: 지금은 `use-posts.ts`뿐이고 목업 데이터라 던질 에러가 없음. TanStack Query 공식 문서가 `QueryErrorResetBoundary` + `react-error-boundary`의 `<ErrorBoundary onReset={reset}>` 조합을 쿼리 에러 복구 표준 패턴으로 제시하므로, `use-stats.ts`/`use-comments.ts` 등 실제 API 훅이 붙는 4차에서 함께 도입 — 댓글 목록 API가 실패해도 글 본문까지 무너지지 않도록 위젯 단위로 감싸는 용도
+
 ## 테스트
 
 - 유닛 테스트: **Vitest** + React Testing Library — Jest보다 설정 간단하고 빠름, Vite/Next.js 생태계 기본 픽
@@ -574,10 +581,11 @@ e2e/                              # Playwright E2E 테스트
 12. [x] `app/rss.xml/route.ts`, `app/sitemap.ts`, `app/robots.ts` 구현 (Next.js 내장 컨벤션) — `SITE_URL`은 `src/lib/site.ts`에 임시 플레이스홀더(`ponytail:` 주석), 배포 시 교체
 13. [x] OG 이미지: `opengraph-image.tsx` 컨벤션으로 글별 자동 생성 — `next/og`(satori)가 `ttf/otf/woff`만 지원해 기존 Pretendard `woff2`를 못 써서, 공식 Pretendard 저장소에서 Bold/SemiBold `otf`를 받아 `assets/fonts/`에 추가(OG 이미지 전용, 사이트 CSS 폰트 로딩과는 별개). ImageResponse는 CSS 커스텀 프로퍼티를 못 읽어 팔레트 hex를 직접 씀(컬러 하드코딩 금지 원칙의 예외)
 14. [x] `/search` 페이지: `use-posts.ts`(useQuery, `search-bar.tsx`의 Enter/버튼 submit 시에만 쿼리 갱신) + `AbortController`, 정렬 드롭다운 + 카테고리/태그 필터 UI (백엔드 검색 API 붙기 전까진 목업 데이터로 UI만 검증) — 정렬/체크박스는 "필요 shadcn 컴포넌트" 목록에 select/checkbox가 없어 네이티브 `<select>`/`<input type="checkbox">` 사용. `useSearchParams`는 정적 빌드 시 Suspense 경계 필수(공식 문서 확인)라 `search/page.tsx`(서버, Suspense) + `search-content.tsx`(클라이언트)로 분리
-15. `lib/metadata.ts` 공통 헬퍼 + `generateMetadata`로 페이지별 title/description(`summary` 재사용)/OG/canonical 설정
-16. `components/seo/json-ld.tsx` — 글 상세 `BlogPosting`, 홈/소개 `Person` 구조화 데이터 삽입
+15. [x] `lib/metadata.ts` 공통 헬퍼 + `generateMetadata`로 페이지별 title/description(`summary` 재사용)/OG/canonical 설정 — 동적 정보가 없는 `/about`, `/posts`는 공식 문서 권장대로 정적 `metadata` export 사용, 라우트 파라미터에 의존하는 `/posts/[slug]`만 `generateMetadata` 사용. `/search`는 CSR이라 색인 대상 아니라서 범위 제외("페이지별 렌더링 전략" 섹션 참고). 루트 레이아웃에 `metadataBase`(`SITE_URL`) + `title.template` 추가
+16. [x] `components/seo/json-ld.tsx` — 글 상세 `BlogPosting`, 홈/소개 `Person` 구조화 데이터 삽입 (공식 JSON-LD 가이드대로 `<script type="application/ld+json">` + `JSON.stringify(...).replace(/</g, "\\u003c")`로 XSS 방지)
 
 **3차 — 검증/문서화**
+16-1. [x] (계획에 없었지만 먼저 진행) `src/app/error.tsx` — 루트 에러 바운더리, "에러 처리" 섹션 참고
 17. Vitest + React Testing Library 세팅, 레이아웃/렌더러 컴포넌트 유닛 테스트
 18. [x] Storybook 세팅 (`npx storybook@latest init`) — ui 컴포넌트 스토리 작성 완료(`Vitest` 연동 테스트 포함, 11개 스토리 파일 통과). `header`/`footer` 등 미구현 레이아웃 컴포넌트 스토리는 5번 항목 완료 후 추가
 19. `app/api/revalidate/route.ts` 구현, Vercel 프로젝트 연결 + `REVALIDATE_SECRET` 환경변수 설정, `yarn build`로 빌드 확인
@@ -590,6 +598,7 @@ e2e/                              # Playwright E2E 테스트
 24. `app/api/auth/google`, `app/api/auth/google/callback` 구현 (자체 OAuth, `state` + 리다이렉트 복귀 경로를 CSRF 방지용 쿠키에 저장)
 25. `zustand` 설치, `lib/login-modal-store.ts` + `login-modal.tsx`(Google 버튼 + 숨겨진 관리자 폼) 구현, 헤더 우측 상단 로그인 버튼에 연결
 26. `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/comments/*`, `app/api/images`, `app/api/resume`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현
+26-1. `react-error-boundary` 설치 + `QueryErrorResetBoundary`와 연동, `use-stats.ts`/`use-comments.ts` 등 실제 API 훅에 위젯 단위 에러 바운더리 적용 ("에러 처리" 섹션 참고)
 27. `use-categories.ts`/`use-tags.ts` + `category-combobox.tsx`/`tag-input.tsx`/`series-fields.tsx` 구현
 28. `markdown-editor.tsx` + `image-upload-button.tsx` 조립해 `/posts/new`, `/posts/[slug]/edit` 실제 폼 완성, `delete-confirm-dialog.tsx` + `owner-actions.tsx`(수정/삭제/숨김/고정)도 `use-posts.ts` 뮤테이션에 연결
 29. `use-stats.ts` + `stats-widget.tsx`를 실제 API로 전환 (목업 데이터 제거)

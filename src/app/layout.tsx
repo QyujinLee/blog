@@ -3,10 +3,15 @@ import { pretendard, jetbrainsMono } from "@/lib/fonts";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "gyujin's log",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "gyujin's log",
+    template: "%s | gyujin's log",
+  },
   description: "실무에서 마주친 문제와 해결 과정을 정리합니다",
 };
 

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
+import { JsonLd } from "@/components/seo/json-ld";
 import { categoryLabel } from "@/data/categories";
 import { posts } from "@/data/posts";
+import { PERSON_JSON_LD } from "@/lib/metadata";
 
 // TODO(4차 — 백엔드 연동): GET /posts?pinned=true 로 교체
 const pinnedPosts = posts.filter((post) => post.pinned && !post.hidden);
@@ -10,6 +12,8 @@ const pinnedPosts = posts.filter((post) => post.pinned && !post.hidden);
 export default function Home() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
+      <JsonLd data={PERSON_JSON_LD} />
+
       <aside className="hidden md:block">
         <div className="sticky top-20">
           <Sidebar withProfile={false} />

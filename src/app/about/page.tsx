@@ -1,12 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/sidebar";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildMetadata, PERSON_JSON_LD } from "@/lib/metadata";
 
 // TODO(4차 — 백엔드 연동): GET /resume로 교체
 const RESUME_URL: string | null = null;
 
+export const metadata = buildMetadata({
+  title: "소개",
+  description: "백엔드와 프론트엔드를 오가며 문제를 끝까지 파고드는 걸 좋아하는 개발자입니다.",
+  path: "/about",
+});
+
 export default function AboutPage() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
+      <JsonLd data={PERSON_JSON_LD} />
+
       <aside className="hidden md:block">
         <div className="sticky top-20">
           <Sidebar />

@@ -3,6 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
 import { categoryLabel } from "@/data/categories";
 import { posts } from "@/data/posts";
+import { buildMetadata } from "@/lib/metadata";
+
+export const metadata = buildMetadata({
+  title: "전체 글",
+  description: "실무에서 마주친 문제와 해결 과정을 정리합니다",
+  path: "/posts",
+});
 
 // TODO(4차 — 백엔드 연동): GET /posts로 교체
 const visiblePosts = [...posts]
