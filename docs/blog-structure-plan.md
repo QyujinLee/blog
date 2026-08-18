@@ -19,7 +19,7 @@
 - 프론트: Next.js를 **Vercel**에 배포(정적 export 아님, Vercel의 서버리스 런타임 사용). 페이지는 SSG로 사전 렌더링하되, 글 CRUD 시 백엔드가 **온디맨드 ISR 재검증** 웹훅을 호출해 해당 페이지만 즉시 갱신 — 콘텐츠 하나 바뀔 때마다 전체 사이트를 재빌드할 필요 없음.
 - 백엔드: NestJS + Prisma REST API, 별도 저장소·별도 배포(Render 무료 웹서비스, 512MB RAM/0.1CPU, 15분 미사용 시 슬립 — Node 런타임이라 재기동은 1~2초). **DB는 Render 자체 Postgres 대신 Neon 무료 Postgres 우선 사용** — Render 무료 Postgres는 일정 기간 후 삭제되는 정책이라 장기 운영 불가. Neon은 미사용 시 컴퓨트만 자동으로 잠들었다 다음 요청에 자동으로 깨어나 사람 개입이 필요 없음(Supabase는 7일 미사용 시 대시보드에서 수동 복구가 필요해 후순위).
 - **인증은 BFF(Backend-For-Frontend) 패턴**: 브라우저는 NestJS를 절대 직접 호출하지 않고, 항상 Next.js의 `app/api/*` Route Handler만 호출함. 그 Route Handler가 서버 코드로서 NestJS와 통신함.
-  - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 NestJS에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정/이력서 업로드 권한
+  - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 NestJS에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정 권한
   - **방문자 로그인**: Google OAuth(자체 구현, 라이브러리 없이 Route Handler로 직접 처리) → NestJS가 JWT(role: `VISITOR`) 발급 → 마찬가지로 httpOnly 쿠키 저장. 댓글 작성 권한 (글 좋아요는 로그인 불필요, 아래 "글 추천(좋아요)" 참고)
   - 브라우저는 토큰 값을 절대 못 읽음(JS로 접근 불가) — 같은 오리진 요청 시 브라우저가 쿠키를 자동으로 첨부해줄 뿐. 클라이언트 컴포넌트(TanStack Query 훅 포함)는 그냥 `/api/...`를 평범하게 `fetch`하면 됨
   - 로그인 여부를 화면에 표시해야 할 땐 `app/api/auth/session/route.ts`(NestJS에 위임 검증 후 `{ isAuthenticated, role }`만 반환)를 `hooks/use-session.ts`(TanStack Query)로 조회
@@ -169,7 +169,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 유닛 테스트 **Vitest**, E2E 테스트 **Playwright**
 - 클라이언트 컴포넌트의 서버 상태 관리는 **TanStack Query(react-query) v5(stable)** — 검색, 댓글, 조회수, 좋아요, 통계 위젯, 글 CRUD 등 CSR로 API 호출하는 모든 곳에서 캐싱/리페치/뮤테이션 처리
 - 미니 디자인 시스템 문서화용 **Storybook** 도입
-- 소개 페이지(`/about`) 텍스트(이력/스킬/철학)는 **코드에 직접 작성** (하드코딩, git push로 반영). 이력서 PDF만 소유자 로그인 시 인라인 업로드
+- 소개 페이지(`/about`) 텍스트(이력/스킬/철학)와 이력서 PDF 둘 다 **정적 파일로 관리** — 자주 안 바뀌므로 백엔드/DB/업로드 API 없이 git push로 반영(텍스트는 코드에 직접 작성, 이력서는 `public/resume.pdf`로 커밋)
 - 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, 댓글(자체 구현), 글 추천(좋아요, 로그인 불필요), Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외)
 - 댓글 추천/비추천 기능은 없앰. 대신 **글 단위 좋아요(추천)** 를 추가 — 로그인 없이 누구나 가능, 세션스토리지로 "이 세션에서 이미 눌렀는지"만 클라이언트가 기억 (세션 끝나면 다시 누를 수 있음), 서버는 총 추천수만 카운트
 - 글마다 **해시태그**(다중) + **시리즈**(연재글 묶음) 부여 가능, 글 하단에 **관련 글 추천** + **최근 수정일** 표시, 목록/공유용 **요약(TL;DR)** 필드 추가
@@ -188,7 +188,6 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 글 삭제
 - 글 숨김 처리 (목록/상세에서 비공개, 데이터는 유지)
 - 핀 고정(pinned) 처리 — 메인 페이지 대표 글로 노출
-- 이력서 PDF 업로드 (기존 파일 교체)
 - 부적절한 댓글 삭제 (모든 댓글에 대해, 모더레이션 목적)
 
 비로그인 방문자도 공개(숨김 처리 안 된) 글과 그 댓글은 자유롭게 읽을 수 있음. **댓글 작성**은 Google 로그인한 방문자(소유자 포함)만 가능. **글 좋아요(추천)** 는 로그인 여부와 무관하게 누구나 가능.
@@ -200,7 +199,6 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - `hooks/use-session.ts`(TanStack Query, `/api/auth/session` 조회)로 `isOwner`/`isVisitor` 판단 — JWT는 httpOnly 쿠키라 클라이언트에서 직접 읽을 수 없음
 - `components/post/owner-actions.tsx`: `isOwner`일 때만 렌더링되는 작은 툴바(수정/삭제/숨김 토글/고정 토글) — `/posts/[slug]` 상세, `/posts` 목록 각 항목에 배치. 삭제는 바로 실행되지 않고 `delete-confirm-dialog.tsx`(shadcn `AlertDialog`)로 한 번 더 확인 — 댓글 모더레이션 삭제(`comment-item.tsx`)도 같은 컴포넌트 재사용
 - 헤더에 `isOwner`일 때만 "새 글 작성" 버튼 노출 → `/posts/new`로 이동
-- `/about` 페이지의 "이력서 다운로드" 버튼 옆에 `isOwner`일 때만 "이력서 교체" 업로드 컨트롤 노출
 - 로그인 버튼은 헤더 우측 상단에 항상 노출(비로그인 시) — 댓글 기능 때문에 방문자도 로그인해야 하므로 더는 숨길 이유가 없음. 로그인 상태면 버튼 대신 아바타/이름 + 로그아웃으로 대체 (자세한 내용은 "로그인 모달" 섹션)
 - `/posts/new`, `/posts/[slug]/edit`는 CSR 페이지라 `use-session.ts` 조회가 끝나기 전엔 로딩 스켈레톤을 보여주고, 조회 완료 후 `isOwner`가 아니면 로그인 모달을 열고 홈(`/`)으로 리다이렉트 (세션 확인 전에 폼이 잠깐 보이는 걸 방지)
 
@@ -246,7 +244,7 @@ Auth.js 같은 라이브러리 없이 Next.js Route Handler로 직접 구현. �
 
 - 쿠키 속성: `httpOnly`, `Secure`, `SameSite=Lax`
 - **JWT 서명 검증은 Next.js가 하지 않음** — NestJS에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 NestJS가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 NestJS 한 곳에만 존재
-- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/posts/[slug]/comments`, `app/api/comments/*`, `app/api/resume/*` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 NestJS 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
+- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/posts/[slug]/comments`, `app/api/comments/*` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 NestJS 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
 - 소유자 로그인 브루트포스 방어는 **NestJS `/auth/login` 쪽에서** Redis로 IP별 시도 횟수를 카운트해 처리(백엔드 트랙) — `login/route.ts`는 자격증명을 그대로 전달만 하는 얇은 프록시, 초과 시 NestJS가 429 반환하면 그대로 중계. Redis는 NestJS에서만 접근(Next.js는 직접 안 붙음)
 - JWT는 짧게 만료, 리프레시 토큰 없음 — 만료되면 인증 필요한 요청이 401 → 프론트가 로그아웃 처리 후 재로그인 유도
 
@@ -298,16 +296,7 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
 ## 소개 페이지 (`/about`) + 이력서
 
 - 텍스트(프로젝트 이력, 스킬, 개발 철학)는 `src/app/about/page.tsx`에 직접 작성하는 정적 콘텐츠 — 자주 바뀌지 않으므로 백엔드/DB 불필요, 수정 시 git push하면 CI가 자동 반영
-- 이력서는 이미지 업로드와 동일한 패턴 재사용:
-  ```
-  /about 페이지에서 소유자로 로그인된 상태로만 보이는 "이력서 교체" 버튼 클릭
-    → app/api/resume/route.ts(BFF)로 PDF 업로드 (쿠키 자동 첨부)
-    → Route Handler가 NestJS에 Authorization 헤더 붙여 전달
-    → NestJS가 Cloudflare R2에 저장 (기존 파일 덮어쓰기, 고정 key 사용)
-    → About 페이지의 "이력서 다운로드" 버튼이 그 URL을 가리킴
-  ```
-- 백엔드에는 이력서 URL을 조회하는 엔드포인트 하나만 있으면 됨 (`GET /api/resume` → 현재 URL 반환), 프론트에선 이것도 `app/api/resume/route.ts` GET으로 프록시
-- 업로드 제한: **10MB, PDF만 허용**
+- 이력서도 같은 이유로 **정적 파일**로 관리 — `public/resume.pdf`에 커밋해두고 "이력서 다운로드" 버튼이 그 경로(`/resume.pdf`)를 그대로 링크. 몇 달에 한 번 바뀔까 말까 한 파일이라 백엔드 업로드 API·R2 저장·소유자 전용 교체 UI까지 만들 필요가 없음(교체는 새 PDF로 git push) — 이미지 업로드(글 작성 중 첨부)는 빌드 시점에 존재하지 않는 콘텐츠라 이 패턴이 안 통하지만, 이력서는 그런 제약이 없음
 
 ## 데이터 모델 (프론트에서 바라보는 형태, 백엔드 API 응답 기준)
 
@@ -439,7 +428,7 @@ src/
         page.tsx                    # 글 상세 — generateStaticParams로 빌드타임 SSG
         opengraph-image.tsx           # 글별 OG 이미지 자동 생성(`next/og`), 마찬가지로 generateStaticParams로 SSG
         edit/page.tsx                # 글 수정 (위와 동일 가드)
-    about/page.tsx                 # 소개 페이지 (하드코딩 텍스트 + 이력서 다운로드, isOwner면 교체 버튼도 노출)
+    about/page.tsx                 # 소개 페이지 (하드코딩 텍스트 + 정적 이력서 다운로드)
     search/
       page.tsx                    # 서버 컴포넌트 — search-content.tsx를 Suspense로 감싸기만 함
       search-content.tsx           # 실제 검색 UI/로직('use client') — useSearchParams는 정적 빌드 시 Suspense 필수라 분리 ("통합 검색" 섹션 참고)
@@ -466,7 +455,6 @@ src/
       stats/visits/route.ts            # 글 조회 추이 프록시
       comments/[id]/route.ts          # 댓글 삭제(소유자) 프록시
       images/route.ts                # 이미지 업로드 프록시
-      resume/route.ts                 # 이력서 업로드/조회 프록시
   components/
     layout/
       header.tsx                  # sticky + 스크롤 시 컴팩트 전환(use-scroll-collapse.ts). 중앙 "gyujin's log"(클릭 시 `/`로 이동, home 링크 겸용) + 왼쪽 mobile-nav.tsx(모바일에서만) + 우측: 검색 아이콘(클릭 시 그 자리에 search-bar.tsx가 펼쳐짐, 데스크톱/모바일 공통 — 평소엔 아이콘만 노출해 헤더 공간 절약), 다크모드 토글, (isOwner) 새 글 작성 버튼(아바타 바로 왼쪽, 모바일은 아이콘만+툴팁), 로그인 버튼(로그인 시 아바타/로그아웃으로 대체)
@@ -609,7 +597,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 23. `app/api/auth/login`, `app/api/auth/session`, `app/api/auth/logout` 구현 (소유자 이메일+비번, httpOnly 쿠키)
 24. `app/api/auth/google`, `app/api/auth/google/callback` 구현 (자체 OAuth, `state` + 리다이렉트 복귀 경로를 CSRF 방지용 쿠키에 저장)
 25. `zustand` 설치, `lib/login-modal-store.ts` + `login-modal.tsx`(Google 버튼 + 숨겨진 관리자 폼) 구현, 헤더 우측 상단 로그인 버튼에 연결
-26. `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/comments/*`, `app/api/images`, `app/api/resume`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현
+26. `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/comments/*`, `app/api/images`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현
 26-1. `react-error-boundary` 설치 + `QueryErrorResetBoundary`와 연동, `use-stats.ts`/`use-comments.ts` 등 실제 API 훅에 위젯 단위 에러 바운더리 적용 ("에러 처리" 섹션 참고)
 27. `use-categories.ts`/`use-tags.ts` + `category-combobox.tsx`/`tag-input.tsx`/`series-fields.tsx` 구현
 28. `markdown-editor.tsx` + `image-upload-button.tsx` 조립해 `/posts/new`, `/posts/[slug]/edit` 실제 폼 완성, `delete-confirm-dialog.tsx` + `owner-actions.tsx`(수정/삭제/숨김/고정)도 `use-posts.ts` 뮤테이션에 연결
@@ -623,7 +611,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 - 글 CRUD API, 숨김/고정 처리
 - 댓글 API: `Comment`(소프트 삭제 지원), 방문자(`User`) 테이블, 소유자 모더레이션(삭제) 권한
 - 글 좋아요 API: `Post.likeCount` 증가, Redis IP+day 중복방지 (인증 불필요)
-- R2 이미지 업로드 API(파일 크기/타입 서버 재검증), 이력서 업로드/조회 API
+- R2 이미지 업로드 API(파일 크기/타입 서버 재검증)
 - `GET /categories`, `GET /tags` (자동완성용)
 - 검색(Postgres full-text search, 제목/태그 가중치 + 정렬/카테고리/태그 필터 파라미터), 조회수 카운터(Redis 중복방지 + Postgres 집계), 통계 조회 API
 - `@nestjs/swagger`로 Swagger 문서화

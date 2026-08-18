@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { JsonLd } from "@/components/seo/json-ld";
 import { buildMetadata, PERSON_JSON_LD } from "@/lib/metadata";
 
-// TODO(4차 — 백엔드 연동): GET /resume로 교체
+// 정적 파일로 관리 — public/resume.pdf 추가 후 "/resume.pdf"로 교체 (백엔드 업로드 API 없음)
 const RESUME_URL: string | null = null;
 
 export const metadata = buildMetadata({
@@ -61,7 +61,6 @@ export default function AboutPage() {
           ) : (
             <Button disabled>이력서 준비 중</Button>
           )}
-          {/* isOwner일 때만 "이력서 교체" 버튼 노출 — use-session.ts 붙는 4차 단계에서 추가 */}
         </section>
       </div>
     </div>
