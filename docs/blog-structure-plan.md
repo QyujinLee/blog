@@ -378,7 +378,7 @@ type Comment = {
 | 다크모드 토글 | `next-themes` + shadcn 다크모드 가이드, 헤더에 토글 버튼 |
 | OG 이미지 자동 생성 | App Router `opengraph-image.tsx` 컨벤션(`next/og`) — 알려진 글은 `generateStaticParams`로 빌드타임 생성, 새 글은 첫 요청 시 자동 생성 후 캐시(`dynamicParams` 기본 동작) |
 | RSS 피드 | `app/rss.xml/route.ts` Route Handler로 실제 서버 라우트 구현, ISR로 캐시 (빌드 스크립트 불필요) |
-| 검색 기능 | `/search`에서 `app/api/posts/search`(BFF) 경유해 백엔드 `GET /posts/search?q=&sort=&category=&tags=` 호출 → Postgres full-text search, 제목/태그 가중치를 본문보다 높게(`setweight`) 부여해 랭킹 (백엔드 트랙). 프론트는 정렬(관련도/최신/조회수) 드롭다운 + 카테고리·태그 체크박스 필터 제공 |
+| 검색 기능 | `/search`에서 `app/api/posts/search`(BFF) 경유해 백엔드 `GET /posts/search?q=&sort=&category=&tags=` 호출 → ILIKE 부분문자열 매칭, 제목/태그 가중치를 본문보다 높게 부여해 랭킹(원래 Postgres full-text search로 설계했으나 한글 부분검색이 안 되는 걸 실제 DB로 확인 후 변경 — 백엔드 트랙, `blog-api` 저장소 `docs/blog-api-plan.md` 참고). 프론트는 정렬(관련도/최신) 드롭다운 + 카테고리·태그 체크박스 필터 제공 |
 | 조회수 카운터 | 글 상세 진입 시 `app/api/posts/[slug]/view`(BFF) 경유해 조회 기록 → Redis로 IP+글+day 단위 중복 방지 후 Postgres `viewCount` 증가 (백엔드 트랙) |
 | 댓글 | 자체 구현(giscus 아님) — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템", "인증 구현" 섹션 참고 (백엔드 트랙) |
 | 글 추천(좋아요) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지. 상세는 "글 추천(좋아요)" 섹션 참고 (백엔드 트랙) |
@@ -572,7 +572,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 5. [x] 레이아웃 구현: `header.tsx`(다크모드 토글 + `use-scroll-collapse.ts`로 sticky 컴팩트 전환 포함) / `footer.tsx` / `profile-card.tsx` / `category-nav.tsx` / `sidebar.tsx` / `mobile-nav.tsx`(햄버거 + Sheet)
 6. [x] `next-themes` 세팅, 다크모드 토글 동작 확인 (`theme-toggle.tsx`)
 7. [x] `app/layout.tsx` 조립 + 메인(`/`) 페이지 구성 (소개 + 대표 글 자리 + 통계 위젯 자리, 데이터는 목업)
-8. [x] `/about` 페이지 작성 (하드코딩 텍스트 + 이력서 다운로드 버튼, 이력서 URL은 임시 하드코딩)
+8. [x] `/about` 페이지 작성 (하드코딩 텍스트 + 이력서 다운로드 버튼, `public/resume.pdf` 파일 추가 전까진 비활성화 상태로 하드코딩 — 이력서는 정적 파일로 관리하기로 결정해 "임시"가 아니라 최종 방식, "소개 페이지" 섹션 참고)
 
 **2차 — 글 콘텐츠 기능**
 9. [x] `markdown-renderer.tsx`(`react-markdown` + `remark-gfm` + `rehype-pretty-code`) + 코드 복사 버튼 + `img` 렌더러를 `next/image`로 교체
@@ -613,7 +613,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 - 글 좋아요 API: `Post.likeCount` 증가, Redis IP+day 중복방지 (인증 불필요)
 - R2 이미지 업로드 API(파일 크기/타입 서버 재검증)
 - `GET /categories`, `GET /tags` (자동완성용)
-- 검색(Postgres full-text search, 제목/태그 가중치 + 정렬/카테고리/태그 필터 파라미터), 조회수 카운터(Redis 중복방지 + Postgres 집계), 통계 조회 API
+- 검색(ILIKE 부분문자열 매칭, 제목/태그 가중치 + 정렬/카테고리/태그 필터 파라미터 — 한글은 Postgres `to_tsvector`/`pg_trgm` 모두 부분검색이 안 되는 걸 실제 DB로 확인 후 ILIKE로 변경, `blog-api` 저장소 `docs/blog-api-plan.md` 참고), 조회수 카운터(Redis 중복방지 + Postgres 집계), 통계 조회 API
 - `@nestjs/swagger`로 Swagger 문서화
 - CORS 설정 불필요 (Next.js BFF만 호출하므로) — 대신 Vercel 서버발 요청만 받도록 좁히는 것도 선택적으로 고려
 - DB는 Neon 무료 Postgres 연동 우선 (Render 자체 DB 아님, Supabase는 7일 미사용 시 수동 복구 필요해 후순위)
