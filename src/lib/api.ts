@@ -41,6 +41,8 @@ export async function proxyToBackend(
     return new Response(null, { status: 204 });
   }
 
-  const data = await backendResponse.json().catch(() => null);
+  // 에러 응답 바디가 비어있거나 JSON이 아니면 null이 아니라 {}를 내려줘야
+  // 클라이언트의 postJson()이 error.message에 접근할 때 안 터짐
+  const data = await backendResponse.json().catch(() => ({}));
   return Response.json(data, { status: backendResponse.status });
 }

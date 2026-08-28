@@ -23,9 +23,11 @@ const chartConfig = {
   count: { label: "조회수", color: "var(--primary)" },
 } satisfies ChartConfig;
 
+// dateString은 "YYYY-MM-DD" — Date로 파싱하면 UTC 자정으로 해석되어
+// 음수 UTC 오프셋 지역에서 하루 밀리는 문제가 있어 문자열을 직접 잘라 씀
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  const [, month, day] = dateString.split("-");
+  return `${Number(month)}/${Number(day)}`;
 }
 
 function StatsWidgetContent() {

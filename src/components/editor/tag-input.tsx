@@ -26,16 +26,18 @@ export function TagInput({ value, onChange }: TagInputProps) {
   const { data: tags = [] } = useTags();
 
   const normalizedSearch = search.trim().toLowerCase();
+  const selectedLower = value.map((tag) => tag.toLowerCase());
   const filtered = tags.filter(
     (tag) =>
-      tag.toLowerCase().includes(normalizedSearch) && !value.includes(tag),
+      tag.toLowerCase().includes(normalizedSearch) &&
+      !selectedLower.includes(tag.toLowerCase()),
   );
   const alreadyExists =
     tags.some((tag) => tag.toLowerCase() === normalizedSearch) ||
-    value.some((tag) => tag.toLowerCase() === normalizedSearch);
+    selectedLower.includes(normalizedSearch);
 
   function addTag(tag: string) {
-    if (!value.includes(tag)) onChange([...value, tag]);
+    if (!selectedLower.includes(tag.toLowerCase())) onChange([...value, tag]);
     setSearch("");
   }
 

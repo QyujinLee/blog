@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -18,6 +19,7 @@ export function LoginModal() {
   const isOpen = useLoginModalStore((state) => state.isOpen);
   const close = useLoginModalStore((state) => state.close);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [pending, setPending] = React.useState(false);
@@ -46,6 +48,9 @@ export function LoginModal() {
       setPassword("");
       close();
       queryClient.invalidateQueries({ queryKey: ["session"] });
+      // 로그인이 draft mode도 함께 켜므로, 이미 렌더된 서버 컴포넌트(숨김 글 등)를
+      // 새 쿠키 상태로 다시 그리도록 갱신
+      router.refresh();
     } catch {
       toast.error("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {

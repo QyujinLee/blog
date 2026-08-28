@@ -4,12 +4,12 @@ type Params = Promise<{ slug: string }>;
 
 export async function GET(request: Request, { params }: { params: Params }) {
   const { slug } = await params;
-  return proxyToBackend(request, `/posts/${slug}`);
+  return proxyToBackend(request, `/posts/${encodeURIComponent(slug)}`);
 }
 
 export async function PUT(request: Request, { params }: { params: Params }) {
   const { slug } = await params;
-  return proxyToBackend(request, `/posts/${slug}`);
+  return proxyToBackend(request, `/posts/${encodeURIComponent(slug)}`);
 }
 
 export async function PATCH(
@@ -17,7 +17,7 @@ export async function PATCH(
   { params }: { params: Params },
 ) {
   const { slug } = await params;
-  return proxyToBackend(request, `/posts/${slug}`);
+  return proxyToBackend(request, `/posts/${encodeURIComponent(slug)}`);
 }
 
 export async function DELETE(
@@ -25,5 +25,5 @@ export async function DELETE(
   { params }: { params: Params },
 ) {
   const { slug } = await params;
-  return proxyToBackend(request, `/posts/${slug}`);
+  return proxyToBackend(request, `/posts/${encodeURIComponent(slug)}`);
 }

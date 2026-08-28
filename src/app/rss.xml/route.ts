@@ -1,5 +1,5 @@
 import { SITE_URL } from "@/lib/site";
-import { fetchPosts } from "@/lib/posts";
+import { fetchPublicPosts } from "@/lib/posts";
 
 // Next.js 15+부터 GET 라우트 핸들러는 기본이 dynamic이라 명시적으로 캐시함.
 // revalidatePath('/', 'layout') 재검증 웹훅은 페이지 트리만 갱신해 이 경로는 못 건드리므로 시간 기반으로 별도 관리.
@@ -23,7 +23,11 @@ function escapeXml(value: string): string {
 }
 
 export async function GET() {
-  const posts = await fetchPosts();
+  // fetchPosts()는 draftMode 활성 시 hidden 글까지 포함하고 cookies()/draftMode()를 호출해
+  // 이 라우트의 request-time dynamic 처리를 유발함(위 revalidate=3600 캐시 의도를 깨뜨림) —
+  // RSS도 sitemap과 동일하게 항상 공개 글만 나와야 하므로 fetchPublicPosts로 교체
+  // (코드 리뷰로 실제로 발견한 버그)
+  const posts = await fetchPublicPosts();
   const items = posts
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((post) => {

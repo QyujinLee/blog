@@ -5,5 +5,5 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  return proxyToBackend(request, `/posts/${slug}/view`);
+  return proxyToBackend(request, `/posts/${encodeURIComponent(slug)}/view`);
 }

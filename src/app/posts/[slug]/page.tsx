@@ -8,6 +8,7 @@ import { SeriesNav } from "@/components/post/series-nav";
 import { TableOfContents } from "@/components/post/table-of-contents";
 import { TagList } from "@/components/post/tag-list";
 import { OwnerActions } from "@/components/post/owner-actions";
+import { ViewTracker } from "@/components/post/view-tracker";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
   fetchPostBySlug,
@@ -63,6 +64,7 @@ export default async function PostPage({
 
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
+      <ViewTracker slug={post.slug} />
       <JsonLd
         data={{
           "@context": "https://schema.org",

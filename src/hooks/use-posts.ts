@@ -26,6 +26,7 @@ export function usePosts(params: PostSearchParams) {
       const response = await fetch(`/api/posts/search?${search.toString()}`, {
         signal,
       });
+      if (!response.ok) throw new Error("검색에 실패했습니다.");
       return response.json();
     },
   });

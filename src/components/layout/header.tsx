@@ -26,7 +26,9 @@ export function Header() {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    queryClient.invalidateQueries({ queryKey: ["session"] });
+    await queryClient.invalidateQueries({ queryKey: ["session"] });
+    // 로그아웃이 draft mode도 함께 끄므로, 이미 렌더된 서버 컴포넌트를 갱신
+    router.refresh();
   }
 
   function handleSearch(query: string) {

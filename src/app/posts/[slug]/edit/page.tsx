@@ -29,6 +29,7 @@ export default function EditPostPage() {
           <p className="text-sm text-muted-foreground">글을 찾을 수 없습니다.</p>
         ) : (
           <PostForm
+            key={post.slug}
             slug={post.slug}
             initialValues={{
               title: post.title,

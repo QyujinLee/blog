@@ -71,6 +71,7 @@ export function OwnerActions({ post }: { post: Post }) {
           size="icon-sm"
           aria-label={post.hidden ? "공개로 전환" : "숨기기"}
           onClick={toggleHidden}
+          disabled={patchPost.isPending}
         >
           {post.hidden ? <Eye /> : <EyeOff />}
         </Button>
@@ -79,6 +80,7 @@ export function OwnerActions({ post }: { post: Post }) {
           size="icon-sm"
           aria-label={post.pinned ? "고정 해제" : "대표 글로 고정"}
           onClick={togglePinned}
+          disabled={patchPost.isPending}
         >
           {post.pinned ? <PinOff /> : <Pin />}
         </Button>
@@ -87,6 +89,7 @@ export function OwnerActions({ post }: { post: Post }) {
           size="icon-sm"
           aria-label="삭제"
           onClick={() => setDeleteOpen(true)}
+          disabled={deletePost.isPending}
         >
           <Trash2 />
         </Button>

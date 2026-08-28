@@ -25,7 +25,7 @@ interface CategoryComboboxProps {
 export function CategoryCombobox({ value, onChange }: CategoryComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
-  const { data: categories = [] } = useCategories();
+  const { data: categories = [], isLoading } = useCategories();
 
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = categories.filter((category) =>
@@ -67,7 +67,9 @@ export function CategoryCombobox({ value, onChange }: CategoryComboboxProps) {
           />
           <CommandList>
             {filtered.length === 0 && !normalizedSearch && (
-              <CommandEmpty>카테고리가 없습니다.</CommandEmpty>
+              <CommandEmpty>
+                {isLoading ? "불러오는 중..." : "카테고리가 없습니다."}
+              </CommandEmpty>
             )}
             <CommandGroup>
               {filtered.map((category) => (

@@ -22,8 +22,13 @@ export function useCategoryGroups() {
     queryKey: ["posts", "all-public"],
     queryFn: async () => {
       const response = await fetch("/api/posts");
+      if (!response.ok) return [];
       return response.json();
     },
+    // ponytail: 사이드바가 모든 페이지에 떠 있어서 매 마운트마다 전체 글 목록을 다시 불러오면
+    // 낭비가 커짐 — 카테고리/태그 집계가 초 단위로 안 바뀌어도 되는 데이터라 1분 정도는 캐시.
+    // 더 정확히 하려면 서버에서 미리 그룹핑해서 내려주는 구조로 바꿔야 하는데 지금은 과함(YAGNI)
+    staleTime: 60 * 1000,
   });
 
   const groups: CategoryGroup[] = categories.map((category) => {
