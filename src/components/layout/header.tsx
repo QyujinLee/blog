@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNav } from "./mobile-nav";
 import { SearchBar } from "./search-bar";
+import { useLoginModalStore } from "@/lib/login-modal-store";
 
 export function Header() {
   const collapsed = useScrollCollapse(40);
   const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
+  const openLoginModal = useLoginModalStore((state) => state.open);
 
   function handleSearch(query: string) {
     setSearchOpen(false);
@@ -82,7 +84,7 @@ export function Header() {
           </Button>
         )}
         <ThemeToggle />
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={openLoginModal}>
           로그인
         </Button>
       </div>

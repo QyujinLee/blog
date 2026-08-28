@@ -3,6 +3,7 @@ import { pretendard, jetbrainsMono } from "@/lib/fonts";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { LoginModal } from "@/components/auth/login-modal";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
           <Header />
           <main className="flex flex-1 flex-col">{children}</main>
           <Footer />
+          <LoginModal />
         </Providers>
       </body>
     </html>
