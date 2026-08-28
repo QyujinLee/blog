@@ -1,5 +1,5 @@
 import { SITE_URL } from "@/lib/site";
-import { posts } from "@/data/posts";
+import { fetchPosts } from "@/lib/posts";
 
 // Next.js 15+부터 GET 라우트 핸들러는 기본이 dynamic이라 명시적으로 캐시함.
 // revalidatePath('/', 'layout') 재검증 웹훅은 페이지 트리만 갱신해 이 경로는 못 건드리므로 시간 기반으로 별도 관리.
@@ -23,8 +23,8 @@ function escapeXml(value: string): string {
 }
 
 export async function GET() {
+  const posts = await fetchPosts();
   const items = posts
-    .filter((post) => !post.hidden)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((post) => {
       const url = `${SITE_URL}/posts/${post.slug}`;

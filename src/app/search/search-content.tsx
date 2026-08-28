@@ -5,22 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/layout/search-bar";
 import { Sidebar } from "@/components/layout/sidebar";
-import { categories, categoryLabel } from "@/data/categories";
+import { useCategories } from "@/hooks/use-categories";
+import { useTags } from "@/hooks/use-tags";
 import { usePosts, type SortOption } from "@/hooks/use-posts";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "relevance", label: "관련도" },
   { value: "latest", label: "최신순" },
-  { value: "views", label: "조회수" },
 ];
-
-const ALL_TAGS = Array.from(
-  new Set(categories.flatMap((category) => category.tags.map((tag) => tag.name))),
-).sort();
 
 export function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: categories = [] } = useCategories();
+  const { data: allTags = [] } = useTags();
 
   const q = searchParams.get("q") ?? "";
   const category = searchParams.get("category") ?? "";
@@ -92,7 +90,7 @@ export function SearchContent() {
           </div>
 
           <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-            {ALL_TAGS.map((tag) => (
+            {allTags.map((tag) => (
               <label key={tag} className="flex items-center gap-1.5 text-sm">
                 <input
                   type="checkbox"
@@ -106,7 +104,9 @@ export function SearchContent() {
           </div>
         </div>
 
-        {isLoading ? (
+        {!q.trim() ? (
+          <p className="text-sm text-muted-foreground">검색어를 입력해주세요.</p>
+        ) : isLoading ? (
           <p className="text-sm text-muted-foreground">검색 중...</p>
         ) : posts && posts.length > 0 ? (
           <ul className="flex flex-col gap-3">
@@ -117,7 +117,8 @@ export function SearchContent() {
                   className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
                 >
                   <Badge variant="secondary" className="w-fit">
-                    {categoryLabel(post.category)}
+                    {categories.find((c) => c.slug === post.categorySlug)?.label ??
+                      post.categorySlug}
                   </Badge>
                   <span className="font-heading font-semibold">{post.title}</span>
                   <span className="text-sm text-muted-foreground">{post.summary}</span>

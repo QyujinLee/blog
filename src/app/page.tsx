@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
 import { JsonLd } from "@/components/seo/json-ld";
-import { categoryLabel } from "@/data/categories";
-import { posts } from "@/data/posts";
+import { fetchPosts, fetchCategories, categoryLabel } from "@/lib/posts";
 import { PERSON_JSON_LD } from "@/lib/metadata";
 
-// TODO(4차 — 백엔드 연동): GET /posts?pinned=true 로 교체
-const pinnedPosts = posts.filter((post) => post.pinned && !post.hidden);
+export default async function Home() {
+  // blog-api엔 pinned 필터 파라미터가 없어 전체를 받아 서버 컴포넌트에서 필터링
+  const [posts, categories] = await Promise.all([fetchPosts(), fetchCategories()]);
+  const pinnedPosts = posts.filter((post) => post.pinned);
 
-export default function Home() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
       <JsonLd data={PERSON_JSON_LD} />
@@ -39,7 +39,7 @@ export default function Home() {
                   className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
                 >
                   <Badge variant="secondary" className="w-fit">
-                    {categoryLabel(post.category)}
+                    {categoryLabel(categories, post.categorySlug)}
                   </Badge>
                   <span className="font-heading font-semibold">{post.title}</span>
                   <span className="text-sm text-muted-foreground">{post.summary}</span>

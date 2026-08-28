@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { posts as allPosts, type Post } from "@/data/posts";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Post } from "@/lib/posts";
 
-export type SortOption = "relevance" | "latest" | "views";
+export type SortOption = "relevance" | "latest";
 
 export interface PostSearchParams {
   q?: string;
@@ -12,40 +12,97 @@ export interface PostSearchParams {
   sort?: SortOption;
 }
 
-// TODO(4차 — 백엔드 연동): GET /posts/search?q=&sort=&category=&tags= 프록시 호출로 교체
-function searchPosts({ q, category, tags, sort }: PostSearchParams): Post[] {
-  const query = q?.trim().toLowerCase();
+export function usePosts(params: PostSearchParams) {
+  return useQuery<Post[]>({
+    queryKey: ["posts", "search", params],
+    enabled: Boolean(params.q?.trim()),
+    queryFn: async ({ signal }) => {
+      const search = new URLSearchParams();
+      search.set("q", params.q!.trim());
+      if (params.sort) search.set("sort", params.sort);
+      if (params.category) search.set("category", params.category);
+      if (params.tags?.length) search.set("tags", params.tags.join(","));
 
-  const filtered = allPosts.filter((post) => {
-    if (post.hidden) return false;
-    if (category && post.category !== category) return false;
-    if (tags?.length && !tags.every((tag) => post.tags.includes(tag))) return false;
-    if (
-      query &&
-      !post.title.toLowerCase().includes(query) &&
-      !post.summary.toLowerCase().includes(query)
-    ) {
-      return false;
-    }
-    return true;
+      const response = await fetch(`/api/posts/search?${search.toString()}`, {
+        signal,
+      });
+      return response.json();
+    },
   });
-
-  if (sort === "views") {
-    return [...filtered].sort((a, b) => b.viewCount - a.viewCount);
-  }
-  if (sort === "latest") {
-    return [...filtered].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  }
-  // relevance: 실제 랭킹(ts_rank)은 백엔드 full-text search 담당, 목업은 필터링 순서 그대로 반환
-  return filtered;
 }
 
-export function usePosts(params: PostSearchParams) {
-  return useQuery({
-    queryKey: ["posts", "search", params],
-    queryFn: async ({ signal }) => {
-      void signal; // 실제 fetch로 교체 시 이 signal을 전달해 취소를 지원
-      return searchPosts(params);
+export interface PostFormValues {
+  title: string;
+  summary: string;
+  body: string;
+  category: string;
+  tags: string[];
+  seriesTitle?: string;
+}
+
+async function postJson<T>(
+  url: string,
+  method: string,
+  body?: unknown,
+): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    const message = Array.isArray(error.message)
+      ? error.message[0]
+      : (error.message ?? "요청에 실패했습니다.");
+    throw new Error(message);
+  }
+
+  if (response.status === 204) return null as T;
+  return response.json();
+}
+
+export function useCreatePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (values: PostFormValues) =>
+      postJson<Post>("/api/posts", "POST", values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
+
+export function useUpdatePost(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (values: PostFormValues) =>
+      postJson<Post>(`/api/posts/${encodeURIComponent(slug)}`, "PUT", values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
+
+export function usePatchPost(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (values: { hidden?: boolean; pinned?: boolean }) =>
+      postJson<Post>(`/api/posts/${encodeURIComponent(slug)}`, "PATCH", values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
+}
+
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) =>
+      postJson<null>(`/api/posts/${encodeURIComponent(slug)}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
   });
 }

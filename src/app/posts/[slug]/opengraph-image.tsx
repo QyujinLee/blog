@@ -1,15 +1,20 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { categoryLabel } from "@/data/categories";
-import { posts } from "@/data/posts";
+import {
+  fetchPostBySlug,
+  fetchPublicPosts,
+  fetchCategories,
+  categoryLabel,
+} from "@/lib/posts";
 
 export const alt = "gyujin's log";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export function generateStaticParams() {
-  return posts.filter((post) => !post.hidden).map((post) => ({ slug: post.slug }));
+export async function generateStaticParams() {
+  const posts = await fetchPublicPosts();
+  return posts.map((post) => ({ slug: post.slug }));
 }
 
 export default async function Image({
@@ -18,7 +23,10 @@ export default async function Image({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = posts.find((candidate) => candidate.slug === slug);
+  const [post, categories] = await Promise.all([
+    fetchPostBySlug(slug),
+    fetchCategories(),
+  ]);
 
   const [bold, semiBold] = await Promise.all([
     readFile(join(process.cwd(), "src/assets/fonts/Pretendard-Bold.otf")),
@@ -46,7 +54,7 @@ export default async function Image({
             color: "#1B2A42",
           }}
         >
-          {post ? categoryLabel(post.category) : "gyujin's log"}
+          {post ? categoryLabel(categories, post.categorySlug) : "gyujin's log"}
         </div>
         <div
           style={{

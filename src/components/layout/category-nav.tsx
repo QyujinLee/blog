@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Accordion,
@@ -5,9 +7,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { categories } from "@/data/categories";
+import { useCategoryGroups } from "@/hooks/use-category-groups";
 
 export function CategoryNav() {
+  const categories = useCategoryGroups();
+
   return (
     <nav className="flex flex-col gap-1">
       <Link

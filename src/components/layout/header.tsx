@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, X } from "lucide-react";
+import { Search, SquarePen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollCollapse } from "@/hooks/use-scroll-collapse";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { MobileNav } from "./mobile-nav";
 import { SearchBar } from "./search-bar";
 import { useLoginModalStore } from "@/lib/login-modal-store";
@@ -96,6 +97,22 @@ export function Header() {
         <ThemeToggle />
         {isOwner ? (
           <>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="새 글 작성"
+                    render={<Link href="/posts/new" />}
+                  />
+                }
+              >
+                <SquarePen />
+                <span className="hidden sm:inline">새 글 작성</span>
+              </TooltipTrigger>
+              <TooltipContent>새 글 작성</TooltipContent>
+            </Tooltip>
             <Avatar size="sm">
               <AvatarFallback>{session?.name?.[0] ?? "G"}</AvatarFallback>
             </Avatar>

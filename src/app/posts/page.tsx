@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
-import { categoryLabel } from "@/data/categories";
-import { posts } from "@/data/posts";
+import { fetchPosts, fetchCategories, categoryLabel } from "@/lib/posts";
 import { buildMetadata } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
@@ -11,12 +10,12 @@ export const metadata = buildMetadata({
   path: "/posts",
 });
 
-// TODO(4차 — 백엔드 연동): GET /posts로 교체
-const visiblePosts = [...posts]
-  .filter((post) => !post.hidden)
-  .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+export default async function PostsPage() {
+  const [posts, categories] = await Promise.all([fetchPosts(), fetchCategories()]);
+  const visiblePosts = [...posts].sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : -1,
+  );
 
-export default function PostsPage() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
@@ -35,7 +34,7 @@ export default function PostsPage() {
                 className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
               >
                 <Badge variant="secondary" className="w-fit">
-                  {categoryLabel(post.category)}
+                  {categoryLabel(categories, post.categorySlug)}
                 </Badge>
                 <span className="font-heading font-semibold">{post.title}</span>
                 <span className="text-sm text-muted-foreground">{post.summary}</span>

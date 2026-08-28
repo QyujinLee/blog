@@ -20,7 +20,7 @@
 - 백엔드: NestJS + Prisma REST API, 별도 저장소·별도 배포(Render 무료 웹서비스, 512MB RAM/0.1CPU, 15분 미사용 시 슬립 — Node 런타임이라 재기동은 1~2초). **DB는 Render 자체 Postgres 대신 Neon 무료 Postgres 우선 사용** — Render 무료 Postgres는 일정 기간 후 삭제되는 정책이라 장기 운영 불가. Neon은 미사용 시 컴퓨트만 자동으로 잠들었다 다음 요청에 자동으로 깨어나 사람 개입이 필요 없음(Supabase는 7일 미사용 시 대시보드에서 수동 복구가 필요해 후순위).
 - **인증은 BFF(Backend-For-Frontend) 패턴**: 브라우저는 NestJS를 절대 직접 호출하지 않고, 항상 Next.js의 `app/api/*` Route Handler만 호출함. 그 Route Handler가 서버 코드로서 NestJS와 통신함.
   - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 NestJS에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정 권한
-  - **방문자 로그인(v1 스코프 제외)**: 원래 Google OAuth로 방문자를 인증해 댓글 작성 권한을 주는 설계였으나, 방문자 로그인의 유일한 용도가 댓글이었고 댓글 자체를 v1에서 뺐으므로 방문자 로그인도 같이 보류(아래 "댓글 시스템" 섹션 참고). `blog-api`의 `POST /auth/google`/`User`(VISITOR) 테이블은 이미 구현·검증까지 끝난 상태라 그대로 두고, 필요해지면 이 프론트 쪽만 다시 붙이면 됨. 글 좋아요는 애초에 로그인 불필요(아래 "글 추천(좋아요)" 참고)
+  - **방문자 로그인(v1 스코프 제외)**: 원래 Google OAuth로 방문자를 인증해 댓글 작성 권한을 주는 설계였으나, 방문자 로그인의 유일한 용도가 댓글이었고 댓글 자체를 v1에서 뺐으므로 방문자 로그인도 같이 보류(아래 "댓글 시스템" 섹션 참고). `blog-api`의 `POST /auth/google`/`User`(VISITOR) 테이블은 이미 구현·검증까지 끝난 상태라 그대로 두고, 필요해지면 이 프론트 쪽만 다시 붙이면 됨
   - 브라우저는 토큰 값을 절대 못 읽음(JS로 접근 불가) — 같은 오리진 요청 시 브라우저가 쿠키를 자동으로 첨부해줄 뿐. 클라이언트 컴포넌트(TanStack Query 훅 포함)는 그냥 `/api/...`를 평범하게 `fetch`하면 됨
   - 로그인 여부를 화면에 표시해야 할 땐 `app/api/auth/session/route.ts`(NestJS에 위임 검증 후 `{ isAuthenticated, role }`만 반환)를 `hooks/use-session.ts`(TanStack Query)로 조회
 - **CORS는 사실상 불필요**: 브라우저가 NestJS에 직접 요청을 보내는 경우가 없으므로(전부 Next.js 서버를 경유), NestJS 쪽 CORS 설정은 없어도 됨. 오히려 NestJS를 Vercel 서버 쪽에서만 접근 가능하도록 더 좁혀도 됨 (선택사항).
@@ -54,9 +54,9 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 **이 Next.js 버전(16.2, `cacheComponents` 미사용)은 `fetch`가 기본적으로 캐시되지 않음** — SSG 대상 페이지(`/`, `/about`, `/posts`, `/posts/[slug]`)에서 백엔드를 호출할 땐 반드시 `{ cache: 'force-cache' }`를 명시해야 빌드/재검증 시점에만 데이터를 가져오고 그 사이엔 캐시된 결과를 씀. 빠뜨리면 매 요청마다 NestJS를 호출하는 사실상 SSR이 되어버려 Render 콜드스타트 문제가 그대로 노출되고 온디맨드 ISR의 이점도 사라짐(단, 아래 "숨김 글 미리보기" Draft Mode가 켜진 요청은 이 옵션과 무관하게 항상 우회됨 — 의도된 동작).
 
-메인(`/`)의 통계 위젯(`stats-widget.tsx`)은 SSG 스냅샷에 포함하지 않고 댓글/좋아요처럼 **클라이언트 아일랜드로 얹어 CSR**로 가져옴(`use-stats.ts`, TanStack Query) — 조회수/좋아요/방문은 글 CRUD가 아니라 재검증 트리거가 없으므로, SSG에 포함시키면 글을 며칠 안 쓰는 동안 그래프가 그대로 멈춰 있게 됨.
+메인(`/`)의 통계 위젯(`stats-widget.tsx`)은 SSG 스냅샷에 포함하지 않고 **클라이언트 아일랜드로 얹어 CSR**로 가져옴(`use-stats.ts`, TanStack Query) — 조회수/방문은 글 CRUD가 아니라 재검증 트리거가 없으므로, SSG에 포함시키면 글을 며칠 안 쓰는 동안 그래프가 그대로 멈춰 있게 됨.
 
-글 상세(`/posts/[slug]`)는 본문만 SSG(+ISR)이고, **댓글 영역은 그 안에서도 항상 CSR**로 따로 불러옴 — 댓글은 아무 때나 방문자가 새로 달 수 있는 데이터라 사전 렌더링 대상이 아님 (조회수와 동일한 이유). 좋아요 하트는 조금 다름: 초기 카운트는 SSG로 같이 내려오고, `like-button.tsx`만 클라이언트 아일랜드로 얹혀서 sessionStorage 확인 + 클릭 처리만 담당 (별도 재조회 없음).
+글 상세(`/posts/[slug]`)는 본문만 SSG(+ISR)이고, 댓글/좋아요는 둘 다 v1 스코프 제외(아래 "댓글 시스템", "글 추천(좋아요)" 섹션 참고)라 클라이언트 아일랜드 관련 서술은 지금은 해당 없음.
 
 **온디맨드 ISR 재검증**: 정적 export 때와 달리 "글 하나 바뀔 때마다 사이트 전체 재빌드"를 안 해도 됨(빌드 자체를 다시 안 함, Next.js가 캐시만 무효화하고 다음 요청 때 해당 페이지들을 재생성). `blog-api`가 글 발행/수정/삭제/숨김/고정 성공 시 `blog` 저장소의 `app/api/revalidate/route.ts`를 호출(`POST /api/revalidate`, `x-revalidate-secret` 헤더로 인증 — 쿼리스트링에 시크릿을 넣으면 로그에 남을 수 있어 헤더 사용). 어떤 글이 어떤 카테고리/태그/시리즈 페이지에 노출되는지 일일이 계산해서 선택적으로 무효화하는 대신, **`revalidatePath('/', 'layout')`로 루트 레이아웃 하위 전체를 한 번에 무효화** — 개인 블로그 규모에서 페이지 수가 많지 않아 이 방식이 더 단순하고 "이 글이 어디어디 노출되는지 빠짐없이 계산"하는 로직에서 생기는 버그 여지도 없음. 요청 바디는 필요 없음(무엇이 바뀌었는지 굳이 안 알려줘도 됨), 호출 자체가 트리거.
 
@@ -166,11 +166,10 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - DB는 **Neon 무료 Postgres 우선**(Render 무료 DB는 일정 기간 후 삭제되므로 사용 안 함), 백엔드 앱은 Render 무료 웹서비스(콜드스타트 감수)
 - 글 작성은 **마크다운**, 이미지 첨부는 백엔드 경유 업로드 → **Cloudflare R2** 저장
 - 유닛 테스트 **Vitest**, E2E 테스트 **Playwright**
-- 클라이언트 컴포넌트의 서버 상태 관리는 **TanStack Query(react-query) v5(stable)** — 검색, 댓글, 조회수, 좋아요, 통계 위젯, 글 CRUD 등 CSR로 API 호출하는 모든 곳에서 캐싱/리페치/뮤테이션 처리
+- 클라이언트 컴포넌트의 서버 상태 관리는 **TanStack Query(react-query) v5(stable)** — 검색, 통계 위젯, 글 CRUD 등 CSR로 API 호출하는 모든 곳에서 캐싱/리페치/뮤테이션 처리(댓글/좋아요는 v1 스코프 제외)
 - 미니 디자인 시스템 문서화용 **Storybook** 도입
 - 소개 페이지(`/about`) 텍스트(이력/스킬/철학)와 이력서 PDF 둘 다 **정적 파일로 관리** — 자주 안 바뀌므로 백엔드/DB/업로드 API 없이 git push로 반영(텍스트는 코드에 직접 작성, 이력서는 `public/resume.pdf`로 커밋)
-- 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, 글 추천(좋아요, 로그인 불필요), Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외). **댓글(자체 구현)은 v1 스코프 제외** — 트래픽/피드백 수요가 실제로 생기면 재검토(아래 "댓글 시스템" 섹션 참고)
-- **글 단위 좋아요(추천)** — 로그인 없이 누구나 가능, 세션스토리지로 "이 세션에서 이미 눌렀는지"만 클라이언트가 기억(세션 끝나면 다시 누를 수 있음), 서버는 총 추천수만 카운트. 원래는 "댓글 추천/비추천 대신 글 단위 좋아요만 둔다"는 맥락이었지만 댓글 자체가 빠지면서 좋아요만 독립적으로 남은 기능
+- 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외). **댓글(자체 구현)과 글 좋아요(추천)는 둘 다 v1 스코프 제외** — 로그인 없는 방문자 참여 지표가 조회수 하나로도 충분하다고 판단, 글쓰기 자체에 집중(아래 "댓글 시스템", "글 추천(좋아요)" 섹션 참고). 좋아요는 blog-api API(`Post.likeCount`, `POST /posts/{slug}/like`)까지 만들고 프론트에서 실제로 붙여보기 직전(26번에서 BFF 프록시 라우트까지 구현)에 제외를 결정해서, 그 프록시 라우트(`app/api/posts/[slug]/like/route.ts`)는 다시 지움
 - 글마다 **해시태그**(다중) + **시리즈**(연재글 묶음) 부여 가능, 글 하단에 **관련 글 추천** + **최근 수정일** 표시, 목록/공유용 **요약(TL;DR)** 필드 추가
 - API 에러 UX: React Query 에러 상태 + shadcn `sonner`(토스트)로 가볍게 처리
 - 커스텀 도메인은 v1엔 보류, `*.vercel.app`으로 시작
@@ -189,7 +188,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 핀 고정(pinned) 처리 — 메인 페이지 대표 글로 노출
 - (v1 스코프 제외) 부적절한 댓글 삭제(모더레이션) — 댓글 기능 자체가 빠져서 같이 보류
 
-비로그인 방문자도 공개(숨김 처리 안 된) 글은 자유롭게 읽을 수 있음. **글 좋아요(추천)** 는 로그인 여부와 무관하게 누구나 가능. (댓글은 v1 스코프 제외 — 아래 "댓글 시스템" 섹션 참고)
+비로그인 방문자도 공개(숨김 처리 안 된) 글은 자유롭게 읽을 수 있음. (댓글, 글 좋아요 둘 다 v1 스코프 제외 — 아래 "댓글 시스템", "글 추천(좋아요)" 섹션 참고)
 
 ### 권한 노출 방식 (별도 관리자 화면 없음)
 
@@ -261,7 +260,9 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
 - 대댓글(스레드)은 이번 스코프 제외 — 플랫 목록만
 - 비로그인 방문자: 댓글 읽기만 가능, 작성 버튼은 "Google로 로그인" 유도로 대체
 
-## 글 추천(좋아요)
+## 글 추천(좋아요) (v1 스코프 제외)
+
+> 로그인 없는 방문자 참여 지표를 조회수와 좋아요 둘 다 가져갈 필요는 없다고 판단해 v1 스코프에서 제외 — 글쓰기 자체에 집중. `blog-api`의 `Post.likeCount`/`POST /posts/{slug}/like`는 이미 구현·검증 끝난 상태(제거 안 함), 프론트 쪽 BFF 프록시(`app/api/posts/[slug]/like/route.ts`)는 26번에서 만들었다가 이 결정 이후 다시 지움 — 아래는 재개할 때를 위해 남겨둔 설계.
 
 댓글이 아니라 **글 단위**로 하트 아이콘 하나만 누르는 가벼운 추천 기능. 로그인 불필요.
 
@@ -377,7 +378,7 @@ type Comment = {
 | 검색 기능 | `/search`에서 `app/api/posts/search`(BFF) 경유해 백엔드 `GET /posts/search?q=&sort=&category=&tags=` 호출 → ILIKE 부분문자열 매칭, 제목/태그 가중치를 본문보다 높게 부여해 랭킹(원래 Postgres full-text search로 설계했으나 한글 부분검색이 안 되는 걸 실제 DB로 확인 후 변경 — 백엔드 트랙, `blog-api` 저장소 `docs/blog-api-plan.md` 참고). 프론트는 정렬(관련도/최신) 드롭다운 + 카테고리·태그 체크박스 필터 제공 |
 | 조회수 카운터 | 글 상세 진입 시 `app/api/posts/[slug]/view`(BFF) 경유해 조회 기록 → Redis로 IP+글+day 단위 중복 방지 후 Postgres `viewCount` 증가 (백엔드 트랙) |
 | 댓글 (v1 스코프 제외) | 자체 구현(giscus 아님) 설계는 남아있음 — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템" 섹션 참고 |
-| 글 추천(좋아요) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지. 상세는 "글 추천(좋아요)" 섹션 참고 (백엔드 트랙) |
+| 글 추천(좋아요) (v1 스코프 제외) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지 설계는 남아있음. 상세는 "글 추천(좋아요)" 섹션 참고 |
 | Swagger | 백엔드에 `@nestjs/swagger` 추가, `/docs`로 API 문서 자동 노출 (백엔드 트랙) |
 | 홈페이지 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 글 조회 추이 그래프(일별 조회수 합계 — 순수 방문자 수는 아님, `blog-api` 저장소 `docs/blog-api-plan.md`의 `DailyVisit` 참고). shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
 | README 구성 | 아키텍처 다이어그램(mermaid), 기술 스택 뱃지, 스크린샷, 라이브 데모 링크, 로컬 실행법 정리 |
@@ -441,8 +442,8 @@ src/
       posts/route.ts                # 글 CRUD 프록시 (목록/등록)
       posts/[slug]/route.ts          # 글 수정/삭제/숨김/고정 프록시 (slug는 최초 생성 후 안 바뀌므로 식별자로 안정적)
       posts/[slug]/view/route.ts      # 조회수 기록 프록시
-      posts/[slug]/like/route.ts       # 좋아요 기록 프록시 (인증 불필요, NestJS로 단순 전달)
       posts/search/route.ts           # 검색 프록시
+      # posts/[slug]/like/route.ts는 안 만듦 — 글 좋아요 v1 스코프 제외
       categories/route.ts            # 카테고리 목록(자동완성용) 프록시
       tags/route.ts                  # 태그 목록(자동완성용) 프록시
       stats/popular-posts/route.ts     # 인기글 TOP N 프록시
@@ -474,8 +475,8 @@ src/
       series-nav.tsx                   # 시리즈 목차 + 이전/다음 글
       related-posts.tsx                 # 같은 태그/카테고리 글 추천
       last-updated.tsx                   # 최초 작성 / 최근 수정 뱃지
-      like-button.tsx                    # 글 좋아요 하트 버튼 — sessionStorage 확인 + 낙관적 +1 + BFF 호출
       owner-actions.tsx               # isOwner일 때만 노출되는 수정/삭제/숨김/고정 툴바
+      # like-button.tsx는 안 만듦 — 글 좋아요 v1 스코프 제외
       delete-confirm-dialog.tsx         # shadcn AlertDialog — 글 삭제 확인 모달
       # comment-list.tsx / comment-form.tsx / comment-item.tsx는 안 만듦 — 댓글 기능 v1 스코프 제외
     home/
@@ -487,7 +488,7 @@ src/
       json-ld.tsx                  # BlogPosting / Person 구조화 데이터 <script> 삽입
   lib/
     api.ts                        # proxyToBackend(request, path) — Route Handler들이 공용으로 쓰는 NestJS 호출 헬퍼 (쿠키→Authorization 헤더 변환, 서명 검증은 안 함)
-    liked-posts.ts                  # sessionStorage에 좋아요 누른 slug 목록 읽기/쓰기 헬퍼 (get/has/add)
+    # liked-posts.ts는 안 만듦 — 글 좋아요 v1 스코프 제외
     metadata.ts                    # 페이지 공통 메타데이터(title/description/OG/canonical) 생성 헬퍼 + PERSON_JSON_LD
     site.ts                        # SITE_URL 상수 (배포 전 임시 플레이스홀더, 배포 시 교체)
     extract-headings.ts             # 마크다운에서 h2/h3 파싱해 TOC 아이템(id 포함) 추출 — markdown-renderer.tsx는 이 id를 문서 순서대로 그대로 소비해 재계산 없이 항상 1:1 대응
@@ -501,7 +502,7 @@ src/
     use-session.ts                  # `/api/auth/session` 조회 (useQuery) — isOwner 판단(비로그인 방문자 로그인이 없어 isOwner/비로그인 두 상태만 존재)
     use-scroll-collapse.ts          # 스크롤 threshold 넘으면 true — 헤더 컴팩트 전환용 (passive 리스너)
     # use-comments.ts는 안 만듦 — 댓글 기능 v1 스코프 제외
-    use-posts.ts                    # 검색 결과, 글 CRUD 뮤테이션, 좋아요 뮤테이션(`/api/posts/[slug]/like`) (`/api/posts/*` 호출) — 2차 시점엔 목업 데이터 검색/필터/정렬만 구현, 4차에서 실 API로 교체
+    use-posts.ts                    # 검색 결과, 글 CRUD 뮤테이션 (`/api/posts/*` 호출) — 2차 시점엔 목업 데이터 검색/필터/정렬만 구현, 4차에서 실 API로 교체(좋아요 뮤테이션은 v1 스코프 제외로 없음)
     use-categories.ts                # 카테고리 자동완성 목록 (`/api/categories`)
     use-tags.ts                      # 태그 자동완성 목록 (`/api/tags`)
     use-stats.ts                     # 홈페이지 통계 위젯 데이터 (`/api/stats/*`)
@@ -585,7 +586,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 21. [x] `.github/workflows/ci.yml` 작성 (PR 시 lint+test 실행, 배포는 Vercel이 전담) — `yarn lint` + `tsc --noEmit`(빠르고 이번 세션에서 실제 타입 에러를 여러 번 잡아준 체크라 build 없이도 포함) + `yarn test`(Vitest) + `yarn test:e2e`(Playwright, `--with-deps chromium`만 설치 — 프로젝트가 Chromium만 쓰므로) + 실패 시 `playwright-report` 아티팩트 업로드. `.nvmrc` 버전으로 Node 세팅. **검증 한계**: `act` 등 로컬 GitHub Actions 러너가 없어 워크플로 자체의 실제 실행은 확인 못 함 — YAML 문법 검증(`pyyaml` 파싱)과 각 스텝 커맨드를 로컬에서 개별적으로 통과시키는 것까지만 확인, 실제 동작은 PR을 열어야 최종 확인됨
 22. [x] README 구성 (아키텍처 다이어그램, 기술 스택, 스크린샷, 데모 링크) — 기존 `create-next-app` 기본 템플릿 그대로였던 걸 전면 교체. mermaid 아키텍처 다이어그램(전체 아키텍처 섹션의 ASCII 다이어그램을 옮김), 기술 스택 표, `docs/screenshots/`에 실제로 캡처한 스크린샷 4장(홈/글 상세/검색/다크모드), 로컬 개발·테스트 명령어, `docs/blog-structure-plan.md` 링크. 데모 링크는 아직 미배포라 자리만 만들어두고 정직하게 명시. mermaid 다이어그램은 실제 GitHub 페이지를 스크린샷으로 확인해 정상 렌더링(박스/화살표/라벨 전부 정상) 검증 완료
 
-**4차 — 백엔드 연동** (인증, 글쓰기, 좋아요, 통계 — 실제 `blog-api` 붙은 뒤)
+**4차 — 백엔드 연동** (인증, 글쓰기, 통계 — 실제 `blog-api` 붙은 뒤)
 
 > **24번(Google OAuth), 31/32번(댓글)은 v1 스코프에서 제외**(grill 세션에서 결정) — 방문자 로그인의 유일한 용도가 댓글이었고, 개인 블로그 초기엔 댓글 참여가 거의 없어 실질 가치가 낮다고 판단. `/about`에 연락처가 이미 있어 피드백 경로는 확보돼 있음. `blog-api`의 Google OAuth/Comment API는 이미 구현·검증 끝난 상태라 그대로 둠 — 나중에 필요해지면 이 프론트 쪽만 다시 붙이면 됨.
 
@@ -596,9 +597,19 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 26. [x] `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/images`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현 (`app/api/comments/*`는 댓글 기능 제외로 안 만듦). `proxyToBackend(request, path)`는 쿠키의 JWT를 `Authorization` 헤더로 붙이고, `multipart/form-data`는 `request.formData()`로 버퍼링해 그대로 전달(스트리밍 안 씀 — Node fetch가 스트림 body엔 `duplex: 'half'`를 요구하는 걸 피하려고 5MB 이하 이미지 업로드엔 버퍼링으로 충분하다고 판단), 그 외엔 `request.text()`로 JSON 문자열 그대로 중계. 204는 바디 없이, 나머지는 JSON으로 상태코드까지 그대로 릴레이. `posts/[slug]/route.ts`(GET/PUT/PATCH/DELETE), `posts/[slug]/view`, `posts/[slug]/like`, `posts/search`, `categories`, `tags`, `stats/popular-posts`, `stats/visits`, `images` 전부 구현. `use-session.ts`는 TanStack Query로 `/api/auth/session` 조회 + `isOwner` 파생값 반환 — 겸사겸사 헤더(`header.tsx`)를 이 훅에 연결해 로그인/로그아웃 상태에 따라 버튼을 로그인 ↔ 아바타+로그아웃으로 전환(23/25번에서 미뤄뒀던 부분), 로그인 성공/로그아웃 시 `queryClient.invalidateQueries(["session"])`로 즉시 반영. 실제 blog-api + Next dev 서버로 전부 검증: 무인증 글 생성 401, 글 생성/조회/수정/숨김토글/삭제, 숨긴 글 소유자만 조회 가능, 조회수/좋아요 기록, 한글 검색, `posts/search`와 `posts/[slug]` 라우트 충돌 없음(정적 경로가 동적 세그먼트보다 우선), 이미지 업로드(무인증 401 + 실제 R2 업로드 후 공개 URL 접근), Playwright로 브라우저에서 로그인→헤더 로그아웃 버튼 전환→로그아웃→헤더 로그인 버튼 복귀까지 스크린샷 확인. 테스트로 만든 글/이미지는 검증 후 정리
 26-1. `react-error-boundary` 설치 + `QueryErrorResetBoundary`와 연동, `use-stats.ts` 등 실제 API 훅에 위젯 단위 에러 바운더리 적용 ("에러 처리" 섹션 참고)
 27. [x] `use-categories.ts`/`use-tags.ts`(TanStack Query, `/api/categories`·`/api/tags` 조회) + `category-combobox.tsx`/`tag-input.tsx`/`series-fields.tsx` 구현. shadcn `command`+`popover` 신규 설치(`command`는 `cmdk` 기반, `popover`는 Base UI — `PopoverTrigger`에 `render={<Button role="combobox" .../>}`로 커스텀 트리거 연결, `Command shouldFilter={false}`로 직접 필터링해 "새로 추가" 아이템이 cmdk 자동 필터에 걸러지지 않게 함). `category-combobox`는 기존 카테고리 선택 또는 자유 입력(백엔드가 label로 upsert), `tag-input`은 다중 선택+자유 추가+제거, `series-fields`는 시리즈 이름 텍스트 입력 하나만(order는 백엔드 자동 계산). 아직 소비하는 폼이 없어(28번에서 에디터에 조립) 임시 페이지(`app/tmp-verify-27/`, Next.js는 `_`로 시작하는 폴더가 라우팅에서 제외되는 private folder 컨벤션이라 언더스코어 없이 명명)에 로컬 state로 렌더링해 실제 blog-api 시드 데이터(카테고리/태그)로 Playwright 검증 후 삭제: 기존 항목 선택, 자유 입력으로 새 항목 추가, 태그 제거, 시리즈 입력까지 전부 실제 값 반영 확인. 이 과정에서 이전 세션(26번) 테스트 때 정리 안 하고 남겨뒀던 orphan 카테고리("검증")도 발견해 같이 정리
-28. `markdown-editor.tsx` + `image-upload-button.tsx` 조립해 `/posts/new`, `/posts/[slug]/edit` 실제 폼 완성, `delete-confirm-dialog.tsx` + `owner-actions.tsx`(수정/삭제/숨김/고정)도 `use-posts.ts` 뮤테이션에 연결
+28. [x] `markdown-editor.tsx` + `image-upload-button.tsx` 조립해 `/posts/new`, `/posts/[slug]/edit` 실제 폼 완성, `delete-confirm-dialog.tsx` + `owner-actions.tsx`(수정/삭제/숨김/고정)도 `use-posts.ts` 뮤테이션에 연결
+    - **스코프 확장**: 원래 문항엔 없었지만 진행하다 보니 `/posts`, `/posts/[slug]`, 홈 대표글이 여전히 `src/data/posts.ts` 목업을 보고 있어서(26번은 프록시 라우트만 만들었을 뿐 읽는 쪽 페이지는 안 바꿈) 에디터로 글을 써도 사이트 어디에도 안 보이는 문제를 미리 발견 — 그래서 이 항목에 읽는 쪽 페이지 전체를 실제 blog-api 데이터로 전환하는 작업까지 포함시킴(`lib/posts.ts` 신설: `fetchPosts`/`fetchPostBySlug`/`fetchCategories`, Draft Mode 인식). `src/data/posts.ts`/`categories.ts` 목업 걷어내고 `page.tsx`(홈), `posts/page.tsx`, `posts/[slug]/page.tsx`, `opengraph-image.tsx`, `sitemap.ts`, `rss.xml/route.ts`, `related-posts.tsx`, `series-nav.tsx`, `category-nav.tsx`(사이드바 카테고리 아코디언 — `MobileNav`가 이미 `"use client"`라 그 트리 안에서 서버 컴포넌트로 못 만들어서 `use-category-groups.ts` 훅으로 클라이언트 전환), `search-content.tsx`(`usePosts`/`useCategories`/`useTags` 실 API 연결, 백엔드에 없는 `views` 정렬 옵션 제거) 전부 교체
+    - **`next.config.ts`에 `images.remotePatterns` 추가**: R2 업로드 이미지(`*.r2.dev`)가 `next/image` 기본 설정에선 최적화 대상 도메인이 아니라서 그대로 두면 발행된 글의 이미지가 깨짐 — 실제로 빠뜨렸다가 발견하고 추가
+    - **실제로 재현해서 고친 진짜 버그**: `generateStaticParams`에 없는 슬러그(=방금 만든 새 글)로 들어가면 `params.slug`가 이미 percent-encode된 채로 들어오는 경우가 있어 `encodeURIComponent`를 또 씌우면 이중 인코딩되어 백엔드가 404 → `notFound()` 호출. `lib/posts.ts`의 `fetchPostBySlug`에서 `decodeURIComponent`로 먼저 정규화한 뒤 다시 인코딩하도록 고침(`fetchPostBySlug`/`fetchPublicPosts` 양쪽에서 안전)
+    - **검증하다 스스로 낚였던 삽질**: 위 버그를 고친 뒤 "글 숨김 처리한 걸 로그아웃 상태에서 봐도 계속 공개로 보인다"고 오판해 `force-cache`→`no-store`, `generateStaticParams` 제거, `force-dynamic` 추가까지 했었음 — 원인은 캐시가 아니라 이 프로젝트에서 **이미 20번에서 발견해 문서화해둔** `notFound()`의 HTTP 상태 코드 한계(스트리밍 응답이라 실제 상태는 200으로 남음, 위 "페이지별 렌더링 전략" 참고)였음. `curl -w "%{http_code}"`로만 검증하다 이 알려진 한계에 또 걸려서 캐시 버그로 오인한 것 — Playwright로 실제 화면에 보이는 텍스트(`getByText(...).isVisible()`)까지 확인하고서야 원래 설계(`force-cache` + `revalidatePath('/', 'layout')` + `generateStaticParams`)가 처음부터 올바르게 동작하고 있었다는 걸 뒤늦게 확인, 불필요했던 변경은 전부 되돌리고 `decodeURIComponent` 수정 하나만 남김. **교훈**: 이 프로젝트에서 `notFound()` 관련 페이지를 검증할 땐 HTTP 상태 코드를 신뢰하지 말고 반드시 화면에 실제로 보이는 내용으로 확인할 것
+    - `owner-actions.tsx`: 수정(`/posts/[slug]/edit`로 이동)/숨김·고정 토글(`usePatchPost` + `router.refresh()`)/삭제(`useDeletePost` + `delete-confirm-dialog.tsx` 확인 후 `/posts`로 리다이렉트) — `/posts/[slug]` 상세 헤더에만 배치(목록 카드마다 넣으려면 카드 전체를 감싸는 `Link` 구조를 다시 짜야 해서 이번 스코프에선 보류, 상세 페이지에서 전부 처리 가능)
+    - `post-form.tsx`: 제목/요약/카테고리/태그/시리즈/본문 공용 폼(생성·수정 겸용), `useCreatePost`/`useUpdatePost` 연결. `markdown-editor.tsx`의 실시간 미리보기는 `react-markdown`의 동기 `Markdown` 컴포넌트만 사용(발행 페이지의 `MarkdownAsync`+`rehype-pretty-code`는 서버 전용이라 클라이언트 에디터에서 못 씀 — 공식 타입 주석으로 확인) — 코드 하이라이트 없이 일반 텍스트로만 보이는 건 의도된 단순화
+    - `/posts/new`, `/posts/[slug]/edit`는 `owner-only.tsx` 가드로 감쌈(세션 로딩 중 스켈레톤, 소유자 아니면 로그인 모달 열고 홈으로 리다이렉트 — 설계 문서 그대로)
+    - 헤더에 (isOwner) "새 글 작성" 버튼도 이 항목에서 같이 배치(아바타 왼쪽, `Tooltip`+`SquarePen` 아이콘, 모바일은 아이콘만)
+    - shadcn `alert-dialog` 신규 설치(Base UI, `AlertDialogAction`은 자동 닫힘이 없어 `onConfirm` 후 직접 `onOpenChange(false)` 호출)
+    - **실제 blog-api + 프로덕션 빌드로 Playwright 전체 플로우 검증**: 로그인 → 새 글 작성(카테고리/태그 자유 입력 포함) → 등록 → `/posts` 목록에 노출 확인 → 수정(기존 값 프리필 확인) → 수정 반영 확인 → 숨김 처리 → 로그아웃 상태에서 실제로 안 보임(화면 텍스트로 확인) → 재로그인 후 Draft Mode로 숨김 글 미리보기 가능 확인 → 삭제 후 목록에서 사라짐 확인, 콘솔 에러 0개. 테스트로 만든 글/카테고리는 전부 정리
 29. `use-stats.ts` + `stats-widget.tsx`를 실제 API로 전환 (목업 데이터 제거)
-30. `lib/liked-posts.ts` + `like-button.tsx` 구현, `/posts/[slug]`(및 목록 카드)에 배치
+30. **(v1 스코프 제외)** ~~`lib/liked-posts.ts` + `like-button.tsx` 구현~~ — 로그인 없는 방문자 참여 지표가 조회수 하나로 충분하다고 판단해 좋아요도 댓글과 함께 제외, 글쓰기에 집중. 26번에서 만든 `app/api/posts/[slug]/like/route.ts` 프록시는 이 결정 이후 삭제
 31. **(v1 스코프 제외)** ~~`use-comments.ts` + `comment-list.tsx`/`comment-item.tsx`/`comment-form.tsx` 구현~~ — 댓글 기능 자체를 안 씀
 32. **(v1 스코프 제외)** ~~비로그인 상태 UI(로그인 유도), 소유자 모더레이션(소프트 삭제 버튼) 처리~~ — 전부 댓글 UX에 딸린 항목이라 31번과 함께 제외
 
@@ -606,7 +617,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 - 인증: 소유자 이메일+비밀번호 검증 API(+Redis 기반 로그인 시도 제한), 방문자는 Next.js BFF가 넘겨주는 Google 프로필로 유저 조회/생성 후 JWT 발급 API — **둘 다 구현·검증 완료**. 다만 방문자 로그인은 프론트에서 v1 스코프 제외라 지금은 안 쓰임(위 "4차" 섹션 참고)
 - 글 CRUD API, 숨김/고정 처리
 - 댓글 API: `Comment`(소프트 삭제 지원), 방문자(`User`) 테이블, 소유자 모더레이션(삭제) 권한 — **구현·검증 완료, 프론트에서 v1 스코프 제외라 지금은 안 쓰임**
-- 글 좋아요 API: `Post.likeCount` 증가, Redis IP+day 중복방지 (인증 불필요)
+- 글 좋아요 API: `Post.likeCount` 증가, Redis IP+day 중복방지 (인증 불필요) — **구현·검증 완료, 프론트에서 v1 스코프 제외라 지금은 안 쓰임**(댓글과 동일한 이유)
 - R2 이미지 업로드 API(파일 크기/타입 서버 재검증)
 - `GET /categories`, `GET /tags` (자동완성용)
 - 검색(ILIKE 부분문자열 매칭, 제목/태그 가중치 + 정렬/카테고리/태그 필터 파라미터 — 한글은 Postgres `to_tsvector`/`pg_trgm` 모두 부분검색이 안 되는 걸 실제 DB로 확인 후 ILIKE로 변경, `blog-api` 저장소 `docs/blog-api-plan.md` 참고), 조회수 카운터(Redis 중복방지 + Postgres 집계), 통계 조회 API

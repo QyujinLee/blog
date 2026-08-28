@@ -1,25 +1,24 @@
 import Link from "next/link";
-import { posts, type Post } from "@/data/posts";
+import type { Post } from "@/lib/posts";
 
-export function SeriesNav({
-  series,
-  currentSlug,
-}: {
-  series: NonNullable<Post["series"]>;
+interface SeriesNavProps {
+  seriesTitle: string;
+  entries: Post[];
   currentSlug: string;
-}) {
-  const entries = posts
-    .filter((post) => post.series?.slug === series.slug && !post.hidden)
-    .sort((a, b) => a.series!.order - b.series!.order);
+}
 
-  const currentIndex = entries.findIndex((post) => post.slug === currentSlug);
-  const prev = currentIndex > 0 ? entries[currentIndex - 1] : undefined;
-  const next = currentIndex < entries.length - 1 ? entries[currentIndex + 1] : undefined;
+export function SeriesNav({ seriesTitle, entries, currentSlug }: SeriesNavProps) {
+  const sorted = [...entries].sort(
+    (a, b) => (a.seriesOrder ?? 0) - (b.seriesOrder ?? 0),
+  );
+  const currentIndex = sorted.findIndex((post) => post.slug === currentSlug);
+  const prev = currentIndex > 0 ? sorted[currentIndex - 1] : undefined;
+  const next = currentIndex < sorted.length - 1 ? sorted[currentIndex + 1] : undefined;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <p className="text-sm font-medium text-muted-foreground">
-        {series.title} · {entries.length}부작 중 {currentIndex + 1}부
+        {seriesTitle} · {sorted.length}부작 중 {currentIndex + 1}부
       </p>
       {(prev || next) && (
         <div className="grid gap-2 sm:grid-cols-2">

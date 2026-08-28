@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { categoryLabel } from "@/data/categories";
-import { posts, type Post } from "@/data/posts";
+import { fetchPosts, categoryLabel, type Post, type Category } from "@/lib/posts";
 
-export function RelatedPosts({ post }: { post: Post }) {
-  const related = posts
-    .filter((candidate) => candidate.slug !== post.slug && !candidate.hidden)
-    .filter(
-      (candidate) =>
-        candidate.category === post.category ||
-        candidate.tags.some((tag) => post.tags.includes(tag)),
-    )
+interface RelatedPostsProps {
+  post: Post;
+  categories: Category[];
+}
+
+export async function RelatedPosts({ post, categories }: RelatedPostsProps) {
+  // blog-api에 "카테고리 OR 태그 겹침" 같은 복합 쿼리가 없어 같은 카테고리 글로 단순화(태그 겹침 우선 정렬)
+  const sameCategory = await fetchPosts({ category: post.categorySlug });
+
+  const related = sameCategory
+    .filter((candidate) => candidate.slug !== post.slug)
+    .sort((a, b) => {
+      const aOverlap = a.tags.some((tag) => post.tags.includes(tag)) ? 1 : 0;
+      const bOverlap = b.tags.some((tag) => post.tags.includes(tag)) ? 1 : 0;
+      return bOverlap - aOverlap;
+    })
     .slice(0, 3);
 
   if (related.length === 0) return null;
@@ -26,7 +33,7 @@ export function RelatedPosts({ post }: { post: Post }) {
               className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
             >
               <Badge variant="secondary" className="w-fit">
-                {categoryLabel(item.category)}
+                {categoryLabel(categories, item.categorySlug)}
               </Badge>
               <span className="font-heading font-semibold">{item.title}</span>
               <span className="text-sm text-muted-foreground">{item.summary}</span>
