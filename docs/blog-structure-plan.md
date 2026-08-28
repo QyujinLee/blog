@@ -20,7 +20,7 @@
 - 백엔드: NestJS + Prisma REST API, 별도 저장소·별도 배포(Render 무료 웹서비스, 512MB RAM/0.1CPU, 15분 미사용 시 슬립 — Node 런타임이라 재기동은 1~2초). **DB는 Render 자체 Postgres 대신 Neon 무료 Postgres 우선 사용** — Render 무료 Postgres는 일정 기간 후 삭제되는 정책이라 장기 운영 불가. Neon은 미사용 시 컴퓨트만 자동으로 잠들었다 다음 요청에 자동으로 깨어나 사람 개입이 필요 없음(Supabase는 7일 미사용 시 대시보드에서 수동 복구가 필요해 후순위).
 - **인증은 BFF(Backend-For-Frontend) 패턴**: 브라우저는 NestJS를 절대 직접 호출하지 않고, 항상 Next.js의 `app/api/*` Route Handler만 호출함. 그 Route Handler가 서버 코드로서 NestJS와 통신함.
   - **소유자(`gyujin89@gmail.com`) 로그인**: 이메일+비밀번호 → Route Handler가 NestJS에 검증 요청 → JWT(role: `OWNER`) 받아서 httpOnly 쿠키로 브라우저에 저장. 글 CRUD/숨김/고정 권한
-  - **방문자 로그인**: Google OAuth(자체 구현, 라이브러리 없이 Route Handler로 직접 처리) → NestJS가 JWT(role: `VISITOR`) 발급 → 마찬가지로 httpOnly 쿠키 저장. 댓글 작성 권한 (글 좋아요는 로그인 불필요, 아래 "글 추천(좋아요)" 참고)
+  - **방문자 로그인(v1 스코프 제외)**: 원래 Google OAuth로 방문자를 인증해 댓글 작성 권한을 주는 설계였으나, 방문자 로그인의 유일한 용도가 댓글이었고 댓글 자체를 v1에서 뺐으므로 방문자 로그인도 같이 보류(아래 "댓글 시스템" 섹션 참고). `blog-api`의 `POST /auth/google`/`User`(VISITOR) 테이블은 이미 구현·검증까지 끝난 상태라 그대로 두고, 필요해지면 이 프론트 쪽만 다시 붙이면 됨. 글 좋아요는 애초에 로그인 불필요(아래 "글 추천(좋아요)" 참고)
   - 브라우저는 토큰 값을 절대 못 읽음(JS로 접근 불가) — 같은 오리진 요청 시 브라우저가 쿠키를 자동으로 첨부해줄 뿐. 클라이언트 컴포넌트(TanStack Query 훅 포함)는 그냥 `/api/...`를 평범하게 `fetch`하면 됨
   - 로그인 여부를 화면에 표시해야 할 땐 `app/api/auth/session/route.ts`(NestJS에 위임 검증 후 `{ isAuthenticated, role }`만 반환)를 `hooks/use-session.ts`(TanStack Query)로 조회
 - **CORS는 사실상 불필요**: 브라우저가 NestJS에 직접 요청을 보내는 경우가 없으므로(전부 Next.js 서버를 경유), NestJS 쪽 CORS 설정은 없어도 됨. 오히려 NestJS를 Vercel 서버 쪽에서만 접근 가능하도록 더 좁혀도 됨 (선택사항).
@@ -157,12 +157,11 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 별도 `/admin` 관리자 화면 없음 — 일반 블로그와 동일한 UI, 로그인한 소유자에게만 같은 화면에 인라인으로 수정/삭제/숨김/고정 컨트롤 노출
 - 프론트: Next.js → **Vercel** 배포(SSG + 온디맨드 ISR), push 시 Vercel이 자동 빌드/배포. 백엔드가 글 CRUD 시 재검증 웹훅 호출
 - 백엔드: **NestJS + Prisma**(TypeScript), 별도 저장소, **Render 무료 웹서비스**에 배포. DB는 Render가 아니라 **Neon 무료 Postgres**(우선, 자동 재개) — Supabase는 7일 미사용 시 수동 복구 필요해 후순위. 처음엔 Spring Boot로 설계했다가, Render 무료 티어에서 JVM 콜드스타트가 30~60초로 길고 프론트와 언어를 통일하는 이점이 커서 착수 직전에 NestJS로 변경(NestJS가 Spring Boot를 본떠 만든 프레임워크라 설계는 거의 그대로 유지됨 — 자세한 내용은 `blog-api` 저장소의 `docs/blog-api-plan.md`)
-- 인증: 소유자는 **이메일+비밀번호**, 방문자는 **Google OAuth**(자체 구현, Auth.js 등 라이브러리 미사용) → **BFF + httpOnly 쿠키** 패턴. 브라우저는 NestJS를 직접 호출하지 않고 항상 Next.js `app/api/*`만 호출
+- 인증: 소유자는 **이메일+비밀번호** → **BFF + httpOnly 쿠키** 패턴. 브라우저는 NestJS를 직접 호출하지 않고 항상 Next.js `app/api/*`만 호출. 방문자 **Google OAuth 로그인은 v1 스코프 제외**(유일한 용도였던 댓글 자체를 뺐음, 아래 "댓글 시스템" 섹션 참고) — `blog-api`엔 이미 구현돼 있으므로 재개 시 프론트만 붙이면 됨
 - 소유자 로그인 브루트포스 방어: **기존 Redis** 재사용해 IP별 시도 횟수 카운트
-- 댓글 본문은 **순수 텍스트만** 렌더링 (마크다운/HTML 미허용, `white-space: pre-wrap`으로 줄바꿈만 유지) — XSS 방지
-- Google OAuth는 **미검증(unverified) 상태로 우선 출시**, 사용자 늘면 추후 검증 신청
-- JWT는 **짧은 만료 시간 + 리프레시 토큰 없음** — 만료되면 401 → 재로그인 유도로 단순 처리
-- 댓글 삭제는 **소프트 삭제**("삭제된 댓글입니다" 표시), **대댓글(스레드)은 이번 스코프 제외**
+- 댓글 본문은 **순수 텍스트만** 렌더링 (마크다운/HTML 미허용, `white-space: pre-wrap`으로 줄바꿈만 유지) — XSS 방지 (v1 제외, 재개 시 적용)
+- JWT는 **1일 만료 + 리프레시 토큰 없음**(초기엔 1시간이었으나 글 작성 중 세션이 끊기는 문제로 늘림) — 만료되면 401 → 재로그인 유도로 단순 처리
+- 댓글 삭제는 **소프트 삭제**("삭제된 댓글입니다" 표시), **대댓글(스레드)은 이번 스코프 제외** (댓글 자체가 v1 스코프 제외라 이 항목도 재개 시 적용)
 - 이미지 업로드 제한: **5MB, jpg/png/webp/gif만 허용**
 - DB는 **Neon 무료 Postgres 우선**(Render 무료 DB는 일정 기간 후 삭제되므로 사용 안 함), 백엔드 앱은 Render 무료 웹서비스(콜드스타트 감수)
 - 글 작성은 **마크다운**, 이미지 첨부는 백엔드 경유 업로드 → **Cloudflare R2** 저장
@@ -170,8 +169,8 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 클라이언트 컴포넌트의 서버 상태 관리는 **TanStack Query(react-query) v5(stable)** — 검색, 댓글, 조회수, 좋아요, 통계 위젯, 글 CRUD 등 CSR로 API 호출하는 모든 곳에서 캐싱/리페치/뮤테이션 처리
 - 미니 디자인 시스템 문서화용 **Storybook** 도입
 - 소개 페이지(`/about`) 텍스트(이력/스킬/철학)와 이력서 PDF 둘 다 **정적 파일로 관리** — 자주 안 바뀌므로 백엔드/DB/업로드 API 없이 git push로 반영(텍스트는 코드에 직접 작성, 이력서는 `public/resume.pdf`로 커밋)
-- 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, 댓글(자체 구현), 글 추천(좋아요, 로그인 불필요), Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외)
-- 댓글 추천/비추천 기능은 없앰. 대신 **글 단위 좋아요(추천)** 를 추가 — 로그인 없이 누구나 가능, 세션스토리지로 "이 세션에서 이미 눌렀는지"만 클라이언트가 기억 (세션 끝나면 다시 누를 수 있음), 서버는 총 추천수만 카운트
+- 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, 글 추천(좋아요, 로그인 불필요), Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외). **댓글(자체 구현)은 v1 스코프 제외** — 트래픽/피드백 수요가 실제로 생기면 재검토(아래 "댓글 시스템" 섹션 참고)
+- **글 단위 좋아요(추천)** — 로그인 없이 누구나 가능, 세션스토리지로 "이 세션에서 이미 눌렀는지"만 클라이언트가 기억(세션 끝나면 다시 누를 수 있음), 서버는 총 추천수만 카운트. 원래는 "댓글 추천/비추천 대신 글 단위 좋아요만 둔다"는 맥락이었지만 댓글 자체가 빠지면서 좋아요만 독립적으로 남은 기능
 - 글마다 **해시태그**(다중) + **시리즈**(연재글 묶음) 부여 가능, 글 하단에 **관련 글 추천** + **최근 수정일** 표시, 목록/공유용 **요약(TL;DR)** 필드 추가
 - API 에러 UX: React Query 에러 상태 + shadcn `sonner`(토스트)로 가볍게 처리
 - 커스텀 도메인은 v1엔 보류, `*.vercel.app`으로 시작
@@ -188,18 +187,18 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 글 삭제
 - 글 숨김 처리 (목록/상세에서 비공개, 데이터는 유지)
 - 핀 고정(pinned) 처리 — 메인 페이지 대표 글로 노출
-- 부적절한 댓글 삭제 (모든 댓글에 대해, 모더레이션 목적)
+- (v1 스코프 제외) 부적절한 댓글 삭제(모더레이션) — 댓글 기능 자체가 빠져서 같이 보류
 
-비로그인 방문자도 공개(숨김 처리 안 된) 글과 그 댓글은 자유롭게 읽을 수 있음. **댓글 작성**은 Google 로그인한 방문자(소유자 포함)만 가능. **글 좋아요(추천)** 는 로그인 여부와 무관하게 누구나 가능.
+비로그인 방문자도 공개(숨김 처리 안 된) 글은 자유롭게 읽을 수 있음. **글 좋아요(추천)** 는 로그인 여부와 무관하게 누구나 가능. (댓글은 v1 스코프 제외 — 아래 "댓글 시스템" 섹션 참고)
 
 ### 권한 노출 방식 (별도 관리자 화면 없음)
 
 방문자에게 보이는 화면과 소유자에게 보이는 화면은 **같은 페이지**임. 차이는 로그인 여부에 따라 일부 컨트롤이 인라인으로 나타나느냐뿐:
 
-- `hooks/use-session.ts`(TanStack Query, `/api/auth/session` 조회)로 `isOwner`/`isVisitor` 판단 — JWT는 httpOnly 쿠키라 클라이언트에서 직접 읽을 수 없음
-- `components/post/owner-actions.tsx`: `isOwner`일 때만 렌더링되는 작은 툴바(수정/삭제/숨김 토글/고정 토글) — `/posts/[slug]` 상세, `/posts` 목록 각 항목에 배치. 삭제는 바로 실행되지 않고 `delete-confirm-dialog.tsx`(shadcn `AlertDialog`)로 한 번 더 확인 — 댓글 모더레이션 삭제(`comment-item.tsx`)도 같은 컴포넌트 재사용
+- `hooks/use-session.ts`(TanStack Query, `/api/auth/session` 조회)로 `isOwner` 판단 — JWT는 httpOnly 쿠키라 클라이언트에서 직접 읽을 수 없음. (`VISITOR` role은 방문자 로그인 자체가 v1 스코프 제외라 프론트에서 다룰 일이 없음 — `isOwner`/비로그인 두 상태만 존재)
+- `components/post/owner-actions.tsx`: `isOwner`일 때만 렌더링되는 작은 툴바(수정/삭제/숨김 토글/고정 토글) — `/posts/[slug]` 상세, `/posts` 목록 각 항목에 배치. 삭제는 바로 실행되지 않고 `delete-confirm-dialog.tsx`(shadcn `AlertDialog`)로 한 번 더 확인
 - 헤더에 `isOwner`일 때만 "새 글 작성" 버튼 노출 → `/posts/new`로 이동
-- 로그인 버튼은 헤더 우측 상단에 항상 노출(비로그인 시) — 댓글 기능 때문에 방문자도 로그인해야 하므로 더는 숨길 이유가 없음. 로그인 상태면 버튼 대신 아바타/이름 + 로그아웃으로 대체 (자세한 내용은 "로그인 모달" 섹션)
+- 로그인 버튼은 헤더 우측 상단에 항상 노출(비로그인 시) — 사실상 소유자 본인만 쓸 일이 있지만(방문자 로그인이 없으므로), 숨길 이유도 없어 그대로 노출 유지. 로그인 상태면 버튼 대신 아바타/이름 + 로그아웃으로 대체 (자세한 내용은 "로그인 모달" 섹션)
 - `/posts/new`, `/posts/[slug]/edit`는 CSR 페이지라 `use-session.ts` 조회가 끝나기 전엔 로딩 스켈레톤을 보여주고, 조회 완료 후 `isOwner`가 아니면 로그인 모달을 열고 홈(`/`)으로 리다이렉트 (세션 확인 전에 폼이 잠깐 보이는 걸 방지)
 
 ## 숨김 글 미리보기 (Draft Mode)
@@ -214,41 +213,38 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 
 ## 로그인 모달
 
+> v1에서 방문자 Google OAuth 로그인이 빠지면서(아래 "댓글 시스템" 섹션 참고), 로그인은 사실상 **소유자 본인 전용** 기능이 됨. 원래 설계는 "Google 버튼이 주 노출, 이메일/비번은 숨겨진 관리자 폼"이었으나 그 구분이 무의미해져서 **이메일/비밀번호 폼 하나만** 있는 모달로 단순화.
+
 로그인은 페이지가 아니라 **모달**(shadcn `Dialog`) — 어느 페이지에서든 페이지 이동 없이 뜨고 닫힘.
 
 ```
-[열리는 경로 1] 헤더 우측 상단 "로그인" 버튼 클릭
-[열리는 경로 2] 비로그인 방문자가 댓글 입력창(textarea)에 포커스 → 자동으로 모달 오픈
-  → 모달 안: Google 로그인 버튼(주로 노출) + "관리자이신가요?" 눌러야 나오는 이메일/비밀번호 폼(기본 숨김)
-  → Google 로그인 선택 시 app/api/auth/google로 풀페이지 리다이렉트(OAuth 특성상 모달 유지 불가)
-     → 로그인 완료 후 원래 있던 페이지로 리다이렉트(google/route.ts가 현재 경로를 짧은 쿠키에 저장해뒀다가 callback에서 사용)
-     → 페이지가 새로고침되며 모달은 자연히 닫힌 상태로 시작 — 이미 로그인은 끝났으니 문제 없음
-  → 소유자 이메일/비밀번호 로그인은 페이지 이동 없이 fetch로 처리 → 성공 시 모달만 닫힘
+헤더 우측 상단 "로그인" 버튼 클릭 → 모달 오픈(이메일/비밀번호 폼)
+  → fetch로 app/api/auth/login 호출(페이지 이동 없음) → 성공 시 모달만 닫힘, 실패 시 폼 안에 에러 메시지
 ```
 
 - 모달 열림 상태는 전역 클라이언트 상태라 **zustand**로 관리(`lib/login-modal-store.ts`) — 서버 상태가 아니라 순수 UI 상태라 TanStack Query 대상이 아님. 어느 컴포넌트에서든 `open()`/`close()` 호출 가능
-- 댓글 인풋 포커스 트리거: `comment-form.tsx`의 textarea `onFocus`에서 `isAuthenticated`가 아니면 `loginModalStore.open()` 호출. 모달이 오버레이로 뜨면서 자연히 포커스를 가져가 입력을 막음(별도 처리 불필요)
-- Google OAuth는 브라우저 풀 리다이렉트가 필요해 모달 상태가 못 살아남음 — 로그인 자체는 이미 성공했으니 굳이 모달을 다시 열 필요는 없고, 로그인 전에 쓰던 댓글 초안이 날아가는 것 정도는 v1에서 감수(초안 임시저장은 YAGNI, 필요해지면 sessionStorage로 보완)
 
 ## 인증 구현 (BFF, 라이브러리 없이 자체 구현)
 
-Auth.js 같은 라이브러리 없이 Next.js Route Handler로 직접 구현. 전부 `app/api/auth/` 아래:
+Auth.js 같은 라이브러리 없이 Next.js Route Handler로 직접 구현. 전부 `app/api/auth/` 아래. **방문자 로그인(Google OAuth)은 v1 스코프 제외**라 `google/route.ts`, `google/callback/route.ts`는 안 만듦 — 아래는 소유자 전용으로 남은 3개:
 
 | Route Handler | 역할 |
 |---|---|
 | `login/route.ts` | 이메일+비밀번호를 받아 NestJS에 검증 요청 → JWT 받아 httpOnly 쿠키 설정 + `draftMode().enable()`(숨김 글 미리보기용, "숨김 글 미리보기" 섹션 참고) (소유자 전용) |
-| `google/route.ts` | Google OAuth 동의 화면으로 리다이렉트. CSRF 방지용 `state` 값 + 로그인 모달을 띄웠던 원래 경로(리퍼러)를 짧은 쿠키에 저장 |
-| `google/callback/route.ts` | Google이 돌려준 `code`를 서버에서 Google과 직접 교환해 프로필(이메일/이름/사진) 획득 → `state` 검증 → NestJS에 로그인/가입 요청 → JWT 받아 httpOnly 쿠키 설정 → 저장해둔 원래 경로로 리다이렉트 |
 | `session/route.ts` | 쿠키의 JWT를 그대로 NestJS `GET /auth/me`에 전달해 위임 검증 → `{ isAuthenticated, role, name? }` 응답을 그대로 중계 (토큰 자체는 절대 프론트 응답에 안 실음) |
 | `logout/route.ts` | 쿠키 삭제 + `draftMode().disable()` |
 
-- 쿠키 속성: `httpOnly`, `Secure`, `SameSite=Lax`
-- **JWT 서명 검증은 Next.js가 하지 않음** — NestJS에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 NestJS가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 NestJS 한 곳에만 존재
-- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/posts/[slug]/comments`, `app/api/comments/*` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 NestJS 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
-- 소유자 로그인 브루트포스 방어는 **NestJS `/auth/login` 쪽에서** Redis로 IP별 시도 횟수를 카운트해 처리(백엔드 트랙) — `login/route.ts`는 자격증명을 그대로 전달만 하는 얇은 프록시, 초과 시 NestJS가 429 반환하면 그대로 중계. Redis는 NestJS에서만 접근(Next.js는 직접 안 붙음)
-- JWT는 짧게 만료, 리프레시 토큰 없음 — 만료되면 인증 필요한 요청이 401 → 프론트가 로그아웃 처리 후 재로그인 유도
+(구현 완료 — 체크리스트 23번, 위 "다음 단계" 참고)
 
-## 댓글 시스템
+- 쿠키 속성: `httpOnly`, `Secure`(프로덕션만), `SameSite=Lax`
+- **JWT 서명 검증은 Next.js가 하지 않음** — NestJS에 전량 위임. Next.js는 쿠키에서 토큰 문자열을 꺼내 그대로 전달만 하고, 유효하지 않으면 NestJS가 401을 주는 걸 그대로 중계. 덕분에 프론트-백엔드 간 JWT 서명 시크릿을 공유할 필요가 없고, 검증 로직도 NestJS 한 곳에만 존재
+- 인증이 필요한 다른 모든 API(`app/api/posts/*`, `app/api/images` 등)는 공용 헬퍼 `lib/api.ts`의 `proxyToBackend(request, path)`를 사용 — 쿠키에서 토큰 꺼내 `Authorization` 헤더 붙여 NestJS 호출 후 응답 그대로 반환. 매 Route Handler마다 이 로직을 반복하지 않기 위한 공용화
+- 소유자 로그인 브루트포스 방어는 **NestJS `/auth/login` 쪽에서** Redis로 IP별 시도 횟수를 카운트해 처리(백엔드 트랙) — `login/route.ts`는 자격증명을 그대로 전달만 하는 얇은 프록시, 초과 시 NestJS가 429 반환하면 그대로 중계. Redis는 NestJS에서만 접근(Next.js는 직접 안 붙음)
+- JWT는 1일 만료, 리프레시 토큰 없음 — 만료되면 인증 필요한 요청이 401 → 프론트가 로그아웃 처리 후 재로그인 유도
+
+## 댓글 시스템 (v1 스코프 제외)
+
+> 원래는 giscus(임베드형) 대신 자체 구현하기로 설계했으나, 초기 개인 블로그는 댓글 참여가 거의 없어 실질 가치가 낮고 `/about` 페이지에 연락처가 이미 노출돼 있어 피드백 경로도 따로 있다고 판단해 **v1 스코프에서 제외**. 아래는 재개할 때를 위해 남겨둔 설계 — `blog-api`의 `Comment`/`User`(VISITOR) API는 이미 구현·테스트까지 끝나 있어(item 8) 이 프론트 쪽만 다시 붙이면 됨.
 
 giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우리 UI에 자연스럽게 못 녹임. 댓글에는 추천/비추천이 없음(아래 "글 추천(좋아요)" 참고, 그건 댓글이 아니라 글 단위 기능).
 
@@ -380,7 +376,7 @@ type Comment = {
 | RSS 피드 | `app/rss.xml/route.ts` Route Handler로 실제 서버 라우트 구현, ISR로 캐시 (빌드 스크립트 불필요) |
 | 검색 기능 | `/search`에서 `app/api/posts/search`(BFF) 경유해 백엔드 `GET /posts/search?q=&sort=&category=&tags=` 호출 → ILIKE 부분문자열 매칭, 제목/태그 가중치를 본문보다 높게 부여해 랭킹(원래 Postgres full-text search로 설계했으나 한글 부분검색이 안 되는 걸 실제 DB로 확인 후 변경 — 백엔드 트랙, `blog-api` 저장소 `docs/blog-api-plan.md` 참고). 프론트는 정렬(관련도/최신) 드롭다운 + 카테고리·태그 체크박스 필터 제공 |
 | 조회수 카운터 | 글 상세 진입 시 `app/api/posts/[slug]/view`(BFF) 경유해 조회 기록 → Redis로 IP+글+day 단위 중복 방지 후 Postgres `viewCount` 증가 (백엔드 트랙) |
-| 댓글 | 자체 구현(giscus 아님) — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템", "인증 구현" 섹션 참고 (백엔드 트랙) |
+| 댓글 (v1 스코프 제외) | 자체 구현(giscus 아님) 설계는 남아있음 — Google OAuth 로그인 방문자만 작성, 소유자는 모더레이션(소프트 삭제) 가능. 상세는 "댓글 시스템" 섹션 참고 |
 | 글 추천(좋아요) | 로그인 불필요, 세션스토리지로 클라이언트 중복방지 + Redis IP+day로 서버 측 가벼운 어뷰징 방지. 상세는 "글 추천(좋아요)" 섹션 참고 (백엔드 트랙) |
 | Swagger | 백엔드에 `@nestjs/swagger` 추가, `/docs`로 API 문서 자동 노출 (백엔드 트랙) |
 | 홈페이지 통계 | 홈(`/`)에 위젯으로 배치: 조회수 TOP5 글, 최근 글 조회 추이 그래프(일별 조회수 합계 — 순수 방문자 수는 아님, `blog-api` 저장소 `docs/blog-api-plan.md`의 `DailyVisit` 참고). shadcn `chart`(Recharts 래퍼) 컴포넌트 사용, 데이터는 백엔드 통계 API에서 조회 |
@@ -398,7 +394,7 @@ type Comment = {
 - **React 자체엔 에러 바운더리 컴포넌트가 없음** — `static getDerivedStateFromError`/`componentDidCatch`를 구현하는 클래스 컴포넌트를 직접 작성해야 함(React 19도 동일, 함수형 1st-party 대안 없음)
 - **`app/error.tsx`(Next.js 내장 컨벤션)**: 라우트 세그먼트를 감싸는 React 에러 바운더리를 자동으로 만들어줌 — 새 의존성 없이 대부분의 렌더링 에러를 커버하므로 루트에 하나(`src/app/error.tsx`) 두는 것으로 충분. `unstable_retry()`(Next 16.2 신규, `reset()`보다 우선 권장)로 재시도 버튼 구현
   - 단, **이벤트 핸들러/비동기 콜백 에러는 못 잡음**(공식 문서 명시) — 라우트 전체가 아니라 위젯 하나만 부분적으로 복구하려는 경우에도 부족
-- **`react-error-boundary`는 4차(백엔드 연동)로 보류**: 지금은 `use-posts.ts`뿐이고 목업 데이터라 던질 에러가 없음. TanStack Query 공식 문서가 `QueryErrorResetBoundary` + `react-error-boundary`의 `<ErrorBoundary onReset={reset}>` 조합을 쿼리 에러 복구 표준 패턴으로 제시하므로, `use-stats.ts`/`use-comments.ts` 등 실제 API 훅이 붙는 4차에서 함께 도입 — 댓글 목록 API가 실패해도 글 본문까지 무너지지 않도록 위젯 단위로 감싸는 용도
+- **`react-error-boundary`는 4차(백엔드 연동)로 보류**: 지금은 `use-posts.ts`뿐이고 목업 데이터라 던질 에러가 없음. TanStack Query 공식 문서가 `QueryErrorResetBoundary` + `react-error-boundary`의 `<ErrorBoundary onReset={reset}>` 조합을 쿼리 에러 복구 표준 패턴으로 제시하므로, `use-stats.ts` 등 실제 API 훅이 붙는 4차에서 함께 도입 — 위젯 하나가 실패해도 글 본문까지 무너지지 않도록 위젯 단위로 감싸는 용도
 
 ## 테스트
 
@@ -438,23 +434,21 @@ src/
     api/
       revalidate/route.ts          # 백엔드가 글 CRUD 시 호출하는 온디맨드 ISR 재검증 웹훅 (secret 헤더로 보호)
       auth/
-        login/route.ts              # 소유자 이메일+비번 로그인 → httpOnly 쿠키 설정
-        google/route.ts              # Google OAuth 리다이렉트 시작
-        google/callback/route.ts      # Google 콜백 처리 → 쿠키 설정
-        session/route.ts              # 현재 로그인 상태 조회 ({isAuthenticated, role})
-        logout/route.ts                # 쿠키 삭제
+        login/route.ts              # 소유자 이메일+비번 로그인 → httpOnly 쿠키 설정 [완료]
+        session/route.ts              # 현재 로그인 상태 조회 ({isAuthenticated, role}) [완료]
+        logout/route.ts                # 쿠키 삭제 [완료]
+        # google/route.ts, google/callback/route.ts는 안 만듦 — 방문자 로그인(Google OAuth) v1 스코프 제외
       posts/route.ts                # 글 CRUD 프록시 (목록/등록)
       posts/[slug]/route.ts          # 글 수정/삭제/숨김/고정 프록시 (slug는 최초 생성 후 안 바뀌므로 식별자로 안정적)
       posts/[slug]/view/route.ts      # 조회수 기록 프록시
       posts/[slug]/like/route.ts       # 좋아요 기록 프록시 (인증 불필요, NestJS로 단순 전달)
-      posts/[slug]/comments/route.ts   # 해당 글 댓글 목록/작성 프록시
       posts/search/route.ts           # 검색 프록시
       categories/route.ts            # 카테고리 목록(자동완성용) 프록시
       tags/route.ts                  # 태그 목록(자동완성용) 프록시
       stats/popular-posts/route.ts     # 인기글 TOP N 프록시
       stats/visits/route.ts            # 글 조회 추이 프록시
-      comments/[id]/route.ts          # 댓글 삭제(소유자) 프록시
       images/route.ts                # 이미지 업로드 프록시
+      # posts/[slug]/comments/route.ts, comments/[id]/route.ts는 안 만듦 — 댓글 기능 v1 스코프 제외
   components/
     layout/
       header.tsx                  # sticky + 스크롤 시 컴팩트 전환(use-scroll-collapse.ts). 중앙 "gyujin's log"(클릭 시 `/`로 이동, home 링크 겸용) + 왼쪽 mobile-nav.tsx(모바일에서만) + 우측: 검색 아이콘(클릭 시 그 자리에 search-bar.tsx가 펼쳐짐, 데스크톱/모바일 공통 — 평소엔 아이콘만 노출해 헤더 공간 절약), 다크모드 토글, (isOwner) 새 글 작성 버튼(아바타 바로 왼쪽, 모바일은 아이콘만+툴팁), 로그인 버튼(로그인 시 아바타/로그아웃으로 대체)
@@ -465,7 +459,7 @@ src/
       category-nav.tsx            # 맨 위 고정 `/posts`, `/about` 링크 + Accordion 기반 카테고리 > 해시태그(#태그명 (개수)) 목록, 태그 클릭 시 `/search?tags=`로 이동
       search-bar.tsx               # pill 모양 검색바(Enter/버튼 submit 시에만 검색, 내부에 초기화+검색 버튼) — 헤더와 `/search` 페이지 상단에서 재사용
     auth/
-      login-modal.tsx               # shadcn Dialog — Google 로그인 버튼(주) + 이메일/비번 폼(관리자용, 기본 숨김). loginModalStore 상태로 열림/닫힘, app/layout.tsx에 한 번만 마운트
+      login-modal.tsx               # shadcn Dialog — 이메일/비번 폼(소유자 전용, 방문자 로그인 없음). loginModalStore 상태로 열림/닫힘, app/layout.tsx에 한 번만 마운트
     editor/
       markdown-editor.tsx         # textarea + 실시간 미리보기 분할 화면
       image-upload-button.tsx     # 업로드 → 본문에 `![]()` 삽입
@@ -481,11 +475,9 @@ src/
       related-posts.tsx                 # 같은 태그/카테고리 글 추천
       last-updated.tsx                   # 최초 작성 / 최근 수정 뱃지
       like-button.tsx                    # 글 좋아요 하트 버튼 — sessionStorage 확인 + 낙관적 +1 + BFF 호출
-      comment-list.tsx                # 댓글 목록 (CSR로 조회)
-      comment-form.tsx                 # 댓글 작성 폼 — textarea onFocus 시 비로그인이면 loginModalStore.open() 호출
-      comment-item.tsx                  # 댓글 1개 + (owner) 삭제 버튼(delete-confirm-dialog.tsx 경유)
       owner-actions.tsx               # isOwner일 때만 노출되는 수정/삭제/숨김/고정 툴바
-      delete-confirm-dialog.tsx         # shadcn AlertDialog — 글/댓글 삭제 공용 확인 모달
+      delete-confirm-dialog.tsx         # shadcn AlertDialog — 글 삭제 확인 모달
+      # comment-list.tsx / comment-form.tsx / comment-item.tsx는 안 만듦 — 댓글 기능 v1 스코프 제외
     home/
       stats-widget.tsx              # 인기글 TOP5 + 글 조회 추이 (shadcn chart, CSR — "페이지별 렌더링 전략" 섹션 참고)
     theme-toggle.tsx                # next-themes 다크모드 토글
@@ -506,9 +498,9 @@ src/
   assets/
     fonts/                          # Pretendard-{Regular,SemiBold,Bold}.woff2(사이트 전체), JetBrainsMono-Regular.woff2, Pretendard-{Bold,SemiBold}.otf(OG 이미지 전용, next/og가 woff2 미지원이라 별도)
   hooks/
-    use-session.ts                  # `/api/auth/session` 조회 (useQuery) — isOwner/isVisitor 판단
+    use-session.ts                  # `/api/auth/session` 조회 (useQuery) — isOwner 판단(비로그인 방문자 로그인이 없어 isOwner/비로그인 두 상태만 존재)
     use-scroll-collapse.ts          # 스크롤 threshold 넘으면 true — 헤더 컴팩트 전환용 (passive 리스너)
-    use-comments.ts                 # 댓글 목록/작성(`/api/posts/[slug]/comments`) + 삭제(`/api/comments/[id]`) (useQuery/useMutation)
+    # use-comments.ts는 안 만듦 — 댓글 기능 v1 스코프 제외
     use-posts.ts                    # 검색 결과, 글 CRUD 뮤테이션, 좋아요 뮤테이션(`/api/posts/[slug]/like`) (`/api/posts/*` 호출) — 2차 시점엔 목업 데이터 검색/필터/정렬만 구현, 4차에서 실 API로 교체
     use-categories.ts                # 카테고리 자동완성 목록 (`/api/categories`)
     use-tags.ts                      # 태그 자동완성 목록 (`/api/tags`)
@@ -534,7 +526,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 - [x] `tooltip` — 새 글 작성 버튼이 아이콘만 보일 때(모바일) 라벨 대체
 - [x] `switch` — 다크모드 토글
 - [x] `badge` — 태그, 최근 수정일 뱃지
-- [ ] `textarea`, `form` — 로그인/글 작성 폼 (관리자 기능 단계에서 추가)
+- [ ] `textarea`, `form` — 로그인 폼(이메일/비번), 글 작성 에디터 (관리자 기능 단계에서 추가)
 - [ ] `chart` — 홈페이지 글 조회 추이/인기글 통계 (Recharts 래퍼)
 - [ ] `command`, `popover` — `category-combobox.tsx`/`tag-input.tsx` 자동완성 (shadcn 콤보박스는 이 둘의 조합 패턴)
 - [x] `sheet` — 모바일 햄버거 메뉴 드로어 (`mobile-nav.tsx`)
@@ -549,7 +541,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 
 - **프론트 (`blog`)**: Vercel이 GitHub 저장소와 직접 연동 — `main` push 시 Vercel이 알아서 빌드+배포 (별도 GitHub Actions 배포 워크플로우 불필요). PR마다 미리보기 URL도 자동 생성됨.
   - 동적 라우트(`[slug]`)는 여전히 `generateStaticParams`로 빌드타임에 알려진 글을 미리 생성, 새 글은 첫 방문 시 자동 생성 후 캐시
-  - Vercel 환경변수(서버 전용, `NEXT_PUBLIC_` 아님): `API_URL`(NestJS 주소, 브라우저엔 노출 안 됨), `REVALIDATE_SECRET`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `INTERNAL_SECRET`(`google/callback/route.ts`가 `POST /auth/google` 호출 시 `X-Internal-Secret` 헤더로 보냄 — `blog-api`의 `INTERNAL_SECRET`과 동일한 값이어야 함, 기존 목록에 빠져 있던 항목) — JWT 서명 검증은 NestJS에 위임하므로 `JWT_SECRET`은 프론트에 불필요
+  - Vercel 환경변수(서버 전용, `NEXT_PUBLIC_` 아님): `API_URL`(NestJS 주소, 브라우저엔 노출 안 됨), `REVALIDATE_SECRET` — JWT 서명 검증은 NestJS에 위임하므로 `JWT_SECRET`은 프론트에 불필요. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`INTERNAL_SECRET`(Google OAuth 콜백용)은 방문자 로그인이 v1 스코프 제외라 지금은 불필요 — 재개 시 추가
   - 테스트/린트는 별도 가벼운 GitHub Actions 워크플로우(`.github/workflows/ci.yml`)로 PR 시 실행 — 배포와는 무관한 품질 게이트
 - **백엔드 (`blog-api`, 별도 저장소)**: Render **무료 웹서비스**에 배포, `main` push 시 Render 자동 배포. **DB는 Render가 아니라 Neon 무료 Postgres 우선**(Render 무료 DB는 일정 기간 후 삭제되는 정책이라 미사용).
   - 글 CRUD(등록/수정/삭제/숨김/고정) 성공 시 `POST https://<vercel-domain>/api/revalidate`(헤더: `x-revalidate-secret`, 바디 불필요) 호출 → `revalidatePath('/', 'layout')`로 전체 무효화
@@ -593,23 +585,27 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 21. [x] `.github/workflows/ci.yml` 작성 (PR 시 lint+test 실행, 배포는 Vercel이 전담) — `yarn lint` + `tsc --noEmit`(빠르고 이번 세션에서 실제 타입 에러를 여러 번 잡아준 체크라 build 없이도 포함) + `yarn test`(Vitest) + `yarn test:e2e`(Playwright, `--with-deps chromium`만 설치 — 프로젝트가 Chromium만 쓰므로) + 실패 시 `playwright-report` 아티팩트 업로드. `.nvmrc` 버전으로 Node 세팅. **검증 한계**: `act` 등 로컬 GitHub Actions 러너가 없어 워크플로 자체의 실제 실행은 확인 못 함 — YAML 문법 검증(`pyyaml` 파싱)과 각 스텝 커맨드를 로컬에서 개별적으로 통과시키는 것까지만 확인, 실제 동작은 PR을 열어야 최종 확인됨
 22. [x] README 구성 (아키텍처 다이어그램, 기술 스택, 스크린샷, 데모 링크) — 기존 `create-next-app` 기본 템플릿 그대로였던 걸 전면 교체. mermaid 아키텍처 다이어그램(전체 아키텍처 섹션의 ASCII 다이어그램을 옮김), 기술 스택 표, `docs/screenshots/`에 실제로 캡처한 스크린샷 4장(홈/글 상세/검색/다크모드), 로컬 개발·테스트 명령어, `docs/blog-structure-plan.md` 링크. 데모 링크는 아직 미배포라 자리만 만들어두고 정직하게 명시. mermaid 다이어그램은 실제 GitHub 페이지를 스크린샷으로 확인해 정상 렌더링(박스/화살표/라벨 전부 정상) 검증 완료
 
-**4차 — 백엔드 연동** (인증, 글쓰기, 댓글, 좋아요, 통계 — 실제 `blog-api` 붙은 뒤)
-23. [x] `app/api/auth/login`, `app/api/auth/session`, `app/api/auth/logout` 구현 (소유자 이메일+비번, httpOnly 쿠키) — `lib/api.ts`에 `API_URL`/`AUTH_COOKIE_NAME` 상수 신설. `login`은 NestJS `POST /auth/login` 호출 후 성공 시 `token` 쿠키(`httpOnly`, `secure: NODE_ENV==='production'`, `sameSite: 'lax'`) 설정 + `draftMode().enable()`, 실패 시 NestJS 에러(상태 코드/바디)를 그대로 중계. 쿠키에 만료 시간은 따로 안 둠 — JWT 자체가 짧게 만료(1h)되니 쿠키 수명은 의미 없고 브라우저 세션 쿠키로 충분(YAGNI). `session`은 쿠키 없으면 즉시 `{isAuthenticated:false}`, 있으면 NestJS `GET /auth/me`에 위임 검증 후 `{isAuthenticated, role, name}` 변환 응답(토큰 자체는 응답에 안 실음), 401이면 쓸모없어진 쿠키를 그 자리에서 삭제. `logout`은 쿠키 삭제 + `draftMode().disable()`(서버 측 토큰 무효화는 없음 — 무상태 JWT라 로그아웃은 클라이언트/BFF 쪽 정리만으로 충분). Next.js 16의 `cookies()`/`draftMode()`가 전부 async 함수로 바뀐 걸 설치된 공식 문서(`node_modules/next/dist/docs`)로 확인 후 반영. 로컬에서 실제 blog-api(`localhost:4000`) + Next dev 서버 둘 다 띄워서 로그인 전/후 세션 조회, 오답 비번(401)·형식 오류(400) 에러 중계, 로그아웃 후 쿠키 삭제, 위조 토큰으로 세션 조회 시 자동 쿠키 정리까지 실제 HTTP 요청으로 검증
-24. `app/api/auth/google`, `app/api/auth/google/callback` 구현 (자체 OAuth, `state` + 리다이렉트 복귀 경로를 CSRF 방지용 쿠키에 저장)
-25. `zustand` 설치, `lib/login-modal-store.ts` + `login-modal.tsx`(Google 버튼 + 숨겨진 관리자 폼) 구현, 헤더 우측 상단 로그인 버튼에 연결
-26. `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/comments/*`, `app/api/images`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현
-26-1. `react-error-boundary` 설치 + `QueryErrorResetBoundary`와 연동, `use-stats.ts`/`use-comments.ts` 등 실제 API 훅에 위젯 단위 에러 바운더리 적용 ("에러 처리" 섹션 참고)
+**4차 — 백엔드 연동** (인증, 글쓰기, 좋아요, 통계 — 실제 `blog-api` 붙은 뒤)
+
+> **24번(Google OAuth), 31/32번(댓글)은 v1 스코프에서 제외**(grill 세션에서 결정) — 방문자 로그인의 유일한 용도가 댓글이었고, 개인 블로그 초기엔 댓글 참여가 거의 없어 실질 가치가 낮다고 판단. `/about`에 연락처가 이미 있어 피드백 경로는 확보돼 있음. `blog-api`의 Google OAuth/Comment API는 이미 구현·검증 끝난 상태라 그대로 둠 — 나중에 필요해지면 이 프론트 쪽만 다시 붙이면 됨.
+
+23. [x] `app/api/auth/login`, `app/api/auth/session`, `app/api/auth/logout` 구현 (소유자 이메일+비번, httpOnly 쿠키) — `lib/api.ts`에 `API_URL`/`AUTH_COOKIE_NAME` 상수 신설. `login`은 NestJS `POST /auth/login` 호출 후 성공 시 `token` 쿠키(`httpOnly`, `secure: NODE_ENV==='production'`, `sameSite: 'lax'`) 설정 + `draftMode().enable()`, 실패 시 NestJS 에러(상태 코드/바디)를 그대로 중계. 쿠키에 만료 시간은 따로 안 둠 — JWT 자체가 만료(1일)되니 쿠키 수명은 의미 없고 브라우저 세션 쿠키로 충분(YAGNI). `session`은 쿠키 없으면 즉시 `{isAuthenticated:false}`, 있으면 NestJS `GET /auth/me`에 위임 검증 후 `{isAuthenticated, role, name}` 변환 응답(토큰 자체는 응답에 안 실음), 401이면 쓸모없어진 쿠키를 그 자리에서 삭제. `logout`은 쿠키 삭제 + `draftMode().disable()`(서버 측 토큰 무효화는 없음 — 무상태 JWT라 로그아웃은 클라이언트/BFF 쪽 정리만으로 충분). Next.js 16의 `cookies()`/`draftMode()`가 전부 async 함수로 바뀐 걸 설치된 공식 문서(`node_modules/next/dist/docs`)로 확인 후 반영. 로컬에서 실제 blog-api(`localhost:4000`) + Next dev 서버 둘 다 띄워서 로그인 전/후 세션 조회, 오답 비번(401)·형식 오류(400) 에러 중계, 로그아웃 후 쿠키 삭제, 위조 토큰으로 세션 조회 시 자동 쿠키 정리까지 실제 HTTP 요청으로 검증
+   - (grill 세션에서 발견) JWT 만료가 1시간이라 글 쓰는 도중 세션이 끊길 수 있는 문제 → `blog-api`의 `JWT_EXPIRATION`을 1일로 변경(로컬 `.env` + Render 배포 환경변수 둘 다 갱신)
+24. **(v1 스코프 제외)** ~~`app/api/auth/google`, `app/api/auth/google/callback` 구현~~ — 방문자 로그인 자체를 안 씀
+25. `zustand` 설치, `lib/login-modal-store.ts` + `login-modal.tsx`(이메일/비번 폼 — Google 버튼과 숨겨진 관리자 폼 구분은 무의미해져서 뺌, 소유자 전용 로그인 폼 하나만) 구현, 헤더 우측 상단 로그인 버튼에 연결
+26. `hooks/use-session.ts` + `lib/api.ts`의 `proxyToBackend` 헬퍼로 `app/api/posts/*`, `app/api/images`, `app/api/categories`, `app/api/tags`, `app/api/stats/*` 프록시 라우트 구현 (`app/api/comments/*`는 댓글 기능 제외로 안 만듦)
+26-1. `react-error-boundary` 설치 + `QueryErrorResetBoundary`와 연동, `use-stats.ts` 등 실제 API 훅에 위젯 단위 에러 바운더리 적용 ("에러 처리" 섹션 참고)
 27. `use-categories.ts`/`use-tags.ts` + `category-combobox.tsx`/`tag-input.tsx`/`series-fields.tsx` 구현
 28. `markdown-editor.tsx` + `image-upload-button.tsx` 조립해 `/posts/new`, `/posts/[slug]/edit` 실제 폼 완성, `delete-confirm-dialog.tsx` + `owner-actions.tsx`(수정/삭제/숨김/고정)도 `use-posts.ts` 뮤테이션에 연결
 29. `use-stats.ts` + `stats-widget.tsx`를 실제 API로 전환 (목업 데이터 제거)
 30. `lib/liked-posts.ts` + `like-button.tsx` 구현, `/posts/[slug]`(및 목록 카드)에 배치
-31. `use-comments.ts`(useQuery/useMutation) + `comment-list.tsx` / `comment-item.tsx` / `comment-form.tsx` 구현, `/posts/[slug]`에 CSR로 배치, textarea 포커스 시 로그인 모달 연결
-32. 비로그인 상태 UI(로그인 유도), 소유자 모더레이션(소프트 삭제 버튼) 처리
+31. **(v1 스코프 제외)** ~~`use-comments.ts` + `comment-list.tsx`/`comment-item.tsx`/`comment-form.tsx` 구현~~ — 댓글 기능 자체를 안 씀
+32. **(v1 스코프 제외)** ~~비로그인 상태 UI(로그인 유도), 소유자 모더레이션(소프트 삭제 버튼) 처리~~ — 전부 댓글 UX에 딸린 항목이라 31번과 함께 제외
 
-**별도 트랙 — `blog-api` 저장소** (이 저장소 1~3차 완료 후 착수)
-- 인증: 소유자 이메일+비밀번호 검증 API(+Redis 기반 로그인 시도 제한), 방문자는 Next.js BFF가 넘겨주는 Google 프로필로 유저 조회/생성 후 JWT 발급 API
+**별도 트랙 — `blog-api` 저장소** (이 저장소 1~3차 완료 후 착수) — **12번까지 전부 완료, Render 배포 및 실제 프로덕션 검증까지 끝남**(상세는 `blog-api` 저장소 `docs/blog-api-plan.md` 참고). 아래는 원래 계획 요약:
+- 인증: 소유자 이메일+비밀번호 검증 API(+Redis 기반 로그인 시도 제한), 방문자는 Next.js BFF가 넘겨주는 Google 프로필로 유저 조회/생성 후 JWT 발급 API — **둘 다 구현·검증 완료**. 다만 방문자 로그인은 프론트에서 v1 스코프 제외라 지금은 안 쓰임(위 "4차" 섹션 참고)
 - 글 CRUD API, 숨김/고정 처리
-- 댓글 API: `Comment`(소프트 삭제 지원), 방문자(`User`) 테이블, 소유자 모더레이션(삭제) 권한
+- 댓글 API: `Comment`(소프트 삭제 지원), 방문자(`User`) 테이블, 소유자 모더레이션(삭제) 권한 — **구현·검증 완료, 프론트에서 v1 스코프 제외라 지금은 안 쓰임**
 - 글 좋아요 API: `Post.likeCount` 증가, Redis IP+day 중복방지 (인증 불필요)
 - R2 이미지 업로드 API(파일 크기/타입 서버 재검증)
 - `GET /categories`, `GET /tags` (자동완성용)
