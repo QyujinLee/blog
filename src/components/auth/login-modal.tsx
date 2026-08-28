@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import { useLoginModalStore } from "@/lib/login-modal-store";
 export function LoginModal() {
   const isOpen = useLoginModalStore((state) => state.isOpen);
   const close = useLoginModalStore((state) => state.close);
+  const queryClient = useQueryClient();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [pending, setPending] = React.useState(false);
@@ -43,6 +45,7 @@ export function LoginModal() {
       setEmail("");
       setPassword("");
       close();
+      queryClient.invalidateQueries({ queryKey: ["session"] });
     } catch {
       toast.error("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {

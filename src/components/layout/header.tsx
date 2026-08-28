@@ -3,10 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollCollapse } from "@/hooks/use-scroll-collapse";
+import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNav } from "./mobile-nav";
 import { SearchBar } from "./search-bar";
@@ -17,6 +20,13 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
   const openLoginModal = useLoginModalStore((state) => state.open);
+  const { isOwner, data: session } = useSession();
+  const queryClient = useQueryClient();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    queryClient.invalidateQueries({ queryKey: ["session"] });
+  }
 
   function handleSearch(query: string) {
     setSearchOpen(false);
@@ -84,9 +94,20 @@ export function Header() {
           </Button>
         )}
         <ThemeToggle />
-        <Button variant="outline" size="sm" onClick={openLoginModal}>
-          로그인
-        </Button>
+        {isOwner ? (
+          <>
+            <Avatar size="sm">
+              <AvatarFallback>{session?.name?.[0] ?? "G"}</AvatarFallback>
+            </Avatar>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              로그아웃
+            </Button>
+          </>
+        ) : (
+          <Button variant="outline" size="sm" onClick={openLoginModal}>
+            로그인
+          </Button>
+        )}
       </div>
     </header>
   );
