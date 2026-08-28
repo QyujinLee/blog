@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/sidebar";
 import { JsonLd } from "@/components/seo/json-ld";
+import { StatsWidget } from "@/components/home/stats-widget";
 import { fetchPosts, fetchCategories, categoryLabel } from "@/lib/posts";
 import { PERSON_JSON_LD } from "@/lib/metadata";
 
@@ -51,10 +52,7 @@ export default async function Home() {
 
         <section className="flex flex-col gap-4">
           <h2 className="font-heading text-lg font-semibold">통계</h2>
-          {/* TODO(4차 — 백엔드 연동): stats-widget.tsx로 교체, use-stats.ts(CSR)로 실제 데이터 조회 */}
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            인기글 TOP5 · 글 조회 추이 위젯 자리
-          </div>
+          <StatsWidget />
         </section>
       </div>
     </div>
