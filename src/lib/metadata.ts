@@ -6,9 +6,10 @@ const SITE_NAME = "gyujin's log";
 export const PERSON_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "Person",
-  name: "gyujin",
+  name: "이규진",
   url: SITE_URL,
-  description: "실무에서 마주친 문제와 해결 과정을 정리합니다",
+  jobTitle: "풀스택 개발자",
+  description: "운영 중인 서비스에서 마주한 문제를 끝까지 추적해 해결하는 풀스택 개발자입니다.",
 };
 
 export function buildMetadata({

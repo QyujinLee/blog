@@ -34,7 +34,7 @@
 | `/` | 메인(GitHub 프로필 스타일) — 자기소개 + 대표(고정/pinned) 글 |
 | `/posts` | 전체 글 목록 |
 | `/posts/[slug]` | 글 상세 |
-| `/about` | 소개 페이지 — 프로젝트 이력/스킬/개발 철학 + 이력서 다운로드 |
+| `/about` | 소개 페이지 — 프로젝트 이력/스킬/개발 철학 |
 | `/search` | 검색 결과 — 카테고리·태그 필터도 이 페이지 하나로 통합(아래 "통합 검색" 참고) |
 | `/posts/new` | 새 글 작성 (로그인 상태 아니면 로그인 모달 오픈 + 홈으로 리다이렉트) |
 | `/posts/[slug]/edit` | 글 수정 |
@@ -168,7 +168,7 @@ Vercel 배포라 SSR/ISR 전부 사용 가능. 아래 두 가지로 구성:
 - 유닛 테스트 **Vitest**, E2E 테스트 **Playwright**
 - 클라이언트 컴포넌트의 서버 상태 관리는 **TanStack Query(react-query) v5(stable)** — 검색, 통계 위젯, 글 CRUD 등 CSR로 API 호출하는 모든 곳에서 캐싱/리페치/뮤테이션 처리(댓글/좋아요는 v1 스코프 제외)
 - 미니 디자인 시스템 문서화용 **Storybook** 도입
-- 소개 페이지(`/about`) 텍스트(이력/스킬/철학)와 이력서 PDF 둘 다 **정적 파일로 관리** — 자주 안 바뀌므로 백엔드/DB/업로드 API 없이 git push로 반영(텍스트는 코드에 직접 작성, 이력서는 `public/resume.pdf`로 커밋)
+- 소개 페이지(`/about`) 텍스트(이력/스킬/철학)는 **정적 파일로 관리** — 자주 안 바뀌므로 백엔드/DB 없이 코드에 직접 작성해 git push로 반영. 이력서 다운로드는 v1 스코프 제외(아래 "소개 페이지" 섹션 참고)
 - 포트폴리오 강화 기능 전부 이번 스코프에 포함: 다크모드, OG 이미지, 검색, 조회수, Swagger, 홈페이지 통계 시각화, 코드 하이라이트+복사, 목차, RSS, README 구성 (읽는시간은 제외). **댓글(자체 구현)과 글 좋아요(추천)는 둘 다 v1 스코프 제외** — 로그인 없는 방문자 참여 지표가 조회수 하나로도 충분하다고 판단, 글쓰기 자체에 집중(아래 "댓글 시스템", "글 추천(좋아요)" 섹션 참고). 좋아요는 blog-api API(`Post.likeCount`, `POST /posts/{slug}/like`)까지 만들고 프론트에서 실제로 붙여보기 직전(26번에서 BFF 프록시 라우트까지 구현)에 제외를 결정해서, 그 프록시 라우트(`app/api/posts/[slug]/like/route.ts`)는 다시 지움
 - 글마다 **해시태그**(다중) + **시리즈**(연재글 묶음) 부여 가능, 글 하단에 **관련 글 추천** + **최근 수정일** 표시, 목록/공유용 **요약(TL;DR)** 필드 추가
 - API 에러 UX: React Query 에러 상태 + shadcn `sonner`(토스트)로 가볍게 처리
@@ -290,10 +290,10 @@ giscus(임베드형) 대신 자체 구현 — giscus는 iframe 위젯이라 우�
   - **모양은 pill(알약형)** — 좌우 끝 `border-radius: 50%`에 해당하는 `rounded-full`
 - **헤더 노출 방식**: 평소엔 검색 아이콘 버튼만 노출(헤더 공간 절약, 모바일도 동일). 클릭하면 그 자리에 `search-bar.tsx`가 펼쳐지고, 제출(Enter/버튼)하면 `/search?q=`로 이동
 
-## 소개 페이지 (`/about`) + 이력서
+## 소개 페이지 (`/about`)
 
 - 텍스트(프로젝트 이력, 스킬, 개발 철학)는 `src/app/about/page.tsx`에 직접 작성하는 정적 콘텐츠 — 자주 바뀌지 않으므로 백엔드/DB 불필요, 수정 시 git push하면 CI가 자동 반영
-- 이력서도 같은 이유로 **정적 파일**로 관리 — `public/resume.pdf`에 커밋해두고 "이력서 다운로드" 버튼이 그 경로(`/resume.pdf`)를 그대로 링크. 몇 달에 한 번 바뀔까 말까 한 파일이라 백엔드 업로드 API·R2 저장·소유자 전용 교체 UI까지 만들 필요가 없음(교체는 새 PDF로 git push) — 이미지 업로드(글 작성 중 첨부)는 빌드 시점에 존재하지 않는 콘텐츠라 이 패턴이 안 통하지만, 이력서는 그런 제약이 없음
+- **이력서 다운로드는 v1 스코프에서 제외**(사용자 결정) — 개인 정보를 인터넷에 공개하는 것 자체가 부담스럽고, 개인 블로그 규모에서 굳이 PDF로 이력을 공개할 실익이 낮다고 판단. 원래 `RESUME_URL: string | null = null` 플레이스홀더로 "이력서 준비 중" 비활성 버튼만 있었고 실제 PDF는 올린 적 없어서, 버튼/상수 통째로 제거. 나중에 필요해지면 `public/resume.pdf` 커밋 + 다운로드 버튼만 다시 추가하면 됨(백엔드 업로드 API는 여전히 불필요 — 위 "정적 파일로 관리" 이유 그대로)
 
 ## 데이터 모델 (프론트에서 바라보는 형태, 백엔드 API 응답 기준)
 
@@ -425,7 +425,7 @@ src/
         page.tsx                    # 글 상세 — generateStaticParams로 빌드타임 SSG
         opengraph-image.tsx           # 글별 OG 이미지 자동 생성(`next/og`), 마찬가지로 generateStaticParams로 SSG
         edit/page.tsx                # 글 수정 (위와 동일 가드)
-    about/page.tsx                 # 소개 페이지 (하드코딩 텍스트 + 정적 이력서 다운로드)
+    about/page.tsx                 # 소개 페이지 (하드코딩 텍스트, 이력서 다운로드는 v1 스코프 제외)
     search/
       page.tsx                    # 서버 컴포넌트 — search-content.tsx를 Suspense로 감싸기만 함
       search-content.tsx           # 실제 검색 UI/로직('use client') — useSearchParams는 정적 빌드 시 Suspense 필수라 분리 ("통합 검색" 섹션 참고)
@@ -565,6 +565,7 @@ playwright.config.ts               # 프로젝트 루트, testDir: ./e2e, Chromi
 6. [x] `next-themes` 세팅, 다크모드 토글 동작 확인 (`theme-toggle.tsx`)
 7. [x] `app/layout.tsx` 조립 + 메인(`/`) 페이지 구성 (소개 + 대표 글 자리 + 통계 위젯 자리, 데이터는 목업)
 8. [x] `/about` 페이지 작성 (하드코딩 텍스트 + 이력서 다운로드 버튼, `public/resume.pdf` 파일 추가 전까진 비활성화 상태로 하드코딩 — 이력서는 정적 파일로 관리하기로 결정해 "임시"가 아니라 최종 방식, "소개 페이지" 섹션 참고)
+    - (배포 직전, 사용자 결정으로 후속 변경) 이력서 다운로드 자체를 v1 스코프에서 제외 — 개인 정보를 인터넷에 공개하는 부담이 실익보다 크다고 판단, 버튼/`RESUME_URL` 상수 제거(실제 PDF는 올린 적 없어 "준비 중" 비활성 버튼만 지운 셈)
 
 **2차 — 글 콘텐츠 기능**
 9. [x] `markdown-renderer.tsx`(`react-markdown` + `remark-gfm` + `rehype-pretty-code`) + 코드 복사 버튼 + `img` 렌더러를 `next/image`로 교체

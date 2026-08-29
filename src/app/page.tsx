@@ -17,7 +17,7 @@ export default async function Home() {
 
       <aside className="hidden md:block">
         <div className="sticky top-20">
-          <Sidebar withProfile={false} />
+          <Sidebar />
         </div>
       </aside>
 
