@@ -23,11 +23,12 @@ const chartConfig = {
   count: { label: "조회수", color: "var(--primary)" },
 } satisfies ChartConfig;
 
-// dateString은 "YYYY-MM-DD" — Date로 파싱하면 UTC 자정으로 해석되어
-// 음수 UTC 오프셋 지역에서 하루 밀리는 문제가 있어 문자열을 직접 잘라 씀
+// 백엔드가 UTC 자정 ISO datetime("2026-08-23T00:00:00.000Z")으로 내려줌 —
+// getMonth()/getDate()(로컬 시간)로 읽으면 음수 UTC 오프셋 지역에서 하루 밀리므로
+// 항상 UTC 기준으로 읽어야 백엔드가 의도한 날짜와 일치함
 function formatDate(dateString: string): string {
-  const [, month, day] = dateString.split("-");
-  return `${Number(month)}/${Number(day)}`;
+  const date = new Date(dateString);
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
 }
 
 function StatsWidgetContent() {
