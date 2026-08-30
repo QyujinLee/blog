@@ -28,7 +28,7 @@ const HIGHLIGHTS = [
     title: "프론트엔드부터 서버·인프라까지 다룹니다.",
     items: [
       "(오픈잇) PHP 레거시를 Spring Boot + React 전면 재구성, MSA(Feign Client) 기반 FE/BE 개발",
-      "(와이오엘오) fetch 캐싱 인프라 설계, Edge Runtime 미들웨어 디버깅·운영, 관세청 연동 서버 프록시 구성",
+      "(크로켓) fetch 캐싱 인프라 설계, Edge Runtime 미들웨어 디버깅·운영, 관세청 연동 서버 프록시 구성",
     ],
   },
   {
@@ -43,6 +43,7 @@ const CAREERS = [
   {
     company: "(주) 와이오엘오",
     period: "2023.06 ~ 재직중",
+    logo: { src: "/BI_croket.svg", alt: "크로켓", chip: "bg-white" },
     items: [
       "Nuxt 2 → Next.js 무중단 마이그레이션 단독 주도 - 보안 지원 종료에 선제 대응해 기술 선정부터 전환까지 단독 수행. 신규/레거시 공존 전략으로 핵심 8개 페이지를 서비스 중단 없이 전환하고 이후 신규 개발을 전량 Next.js로 전환. 클라이언트(Jotai)·서버(TanStack Query v5) 상태를 분리하고 컨벤션 문서화·PR 코드리뷰로 팀 표준 환경을 정립했습니다.",
       "성능·SEO 체계 구축으로 모바일 검색 노출 사실상 0 → 44.7만 - Core Web Vitals 개선(빠른 URL 99.1%), 인덱싱 페이지 171K 확대, 전 페이지 Lighthouse SEO 100 달성. Lighthouse 주기 측정 + GSC 모니터링으로 성능 회귀 방지 체계를 정착시켰습니다.",
@@ -52,6 +53,7 @@ const CAREERS = [
   {
     company: "(주) 오픈잇",
     period: "2018.11 ~ 2023.05",
+    logo: { src: "/CI_openit.svg", alt: "오픈잇", chip: "bg-neutral-900" },
     items: [
       "PHP 레거시를 Spring Boot + React로 전면 재구성 (쥬비스 상담 시스템) - 함수형 컴포넌트·Hooks 구조로 현대화하고, 스키마당 100개 이상 테이블의 복잡한 DB 환경에서 기존 시스템 에러 없이 전환. UX·유지보수성 개선",
       "SKT 5GX Cloud Platform FE/BE 개발 - MSA(Feign Client) 기반 — 고객사 VDI 환경에 맞춘 세션 로그인 및 계약 파트를 개발하며 복잡한 엔터프라이즈 인프라 환경에 대한 이해를 확보",
@@ -86,11 +88,7 @@ const ICONLESS_SKILLS = ["Jotai", "TanStack Query"];
 
 function SectionHeading({ children }: { children: string }) {
   return (
-    <h2 className="font-heading text-2xl font-bold">
-      <span className="font-mono text-muted-foreground">{"<"}</span>
-      {children}
-      <span className="font-mono text-muted-foreground"> {"/>"}</span>
-    </h2>
+    <h2 className="font-heading text-2xl font-bold">{children}</h2>
   );
 }
 
@@ -139,48 +137,47 @@ export default function AboutPage() {
 
         <section className="flex flex-col gap-5">
           <SectionHeading>이력</SectionHeading>
-          {CAREERS.map((career) => (
-            <div key={career.company} className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-baseline gap-x-2">
-                <p className="text-lg font-medium">{career.company}</p>
-                <p className="text-sm text-muted-foreground">{career.period}</p>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {career.items.map((item) => (
-                  <li
-                    key={item}
-                    className="leading-[1.45] text-base text-muted-foreground before:mr-1.5 before:content-['-']"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <SectionHeading>학력</SectionHeading>
-          <p className="leading-[1.45] text-base text-muted-foreground">
-            국립 한경대학교 컴퓨터공학과 졸업 (2012.03 ~ 2018.02)
-          </p>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <SectionHeading>자격증</SectionHeading>
-          <ul className="flex flex-col gap-3">
-            {CERTIFICATIONS.map((cert) => (
-              <li key={cert.id} className="flex flex-col gap-0.5">
-                <p className="text-lg font-medium leading-[1.45]">{cert.name}</p>
-                <p className="leading-[1.45] text-base text-muted-foreground">
-                  {cert.issuer} · {cert.date}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  식별번호: {cert.id}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-col">
+            {CAREERS.map((career, index) => {
+              const isLast = index === CAREERS.length - 1;
+              return (
+                <div key={career.company} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <span className="mt-3 size-2.5 shrink-0 rounded-full bg-primary" />
+                    {!isLast && <span className="w-px flex-1 bg-border" />}
+                  </div>
+                  <div className={`flex flex-col gap-2 ${isLast ? "" : "pb-12"}`}>
+                    <div className="flex flex-wrap items-center gap-x-3">
+                      <div
+                        className={`flex h-10 items-center rounded-md px-3 ${career.logo.chip}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={career.logo.src}
+                          alt={career.logo.alt}
+                          className="h-5 w-auto"
+                        />
+                      </div>
+                      <p className="text-lg font-medium">{career.company}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {career.period}
+                      </p>
+                    </div>
+                    <ul className="flex flex-col gap-2">
+                      {career.items.map((item) => (
+                        <li
+                          key={item}
+                          className="leading-[1.45] text-base text-muted-foreground before:mr-1.5 before:content-['-']"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         <section className="flex flex-col gap-3">
@@ -205,6 +202,30 @@ export default function AboutPage() {
               그 외: {ICONLESS_SKILLS.join(", ")}
             </p>
           </div>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <SectionHeading>자격증</SectionHeading>
+          <ul className="flex flex-col gap-3">
+            {CERTIFICATIONS.map((cert) => (
+              <li key={cert.id} className="flex flex-col gap-0.5">
+                <p className="text-lg font-medium leading-[1.45]">{cert.name}</p>
+                <p className="leading-[1.45] text-base text-muted-foreground">
+                  {cert.issuer} · {cert.date}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  식별번호: {cert.id}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <SectionHeading>학력</SectionHeading>
+          <p className="leading-[1.45] text-base text-muted-foreground">
+            국립 한경대학교 컴퓨터공학과 졸업 (2012.03 ~ 2018.02)
+          </p>
         </section>
       </div>
     </div>
