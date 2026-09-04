@@ -17,7 +17,7 @@ import { SearchBar } from "./search-bar";
 import { useLoginModalStore } from "@/lib/login-modal-store";
 
 export function Header() {
-  const collapsed = useScrollCollapse(40);
+  const collapsed = useScrollCollapse();
   const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
   const openLoginModal = useLoginModalStore((state) => state.open);
