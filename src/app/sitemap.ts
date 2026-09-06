@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 렌더링될 때 숨김 글 URL이 공개 sitemap.xml에 노출될 수 있었음)
   const posts = await fetchPublicPosts();
   const postEntries: MetadataRoute.Sitemap = posts.map((post) => ({
-    url: `${SITE_URL}/posts/${post.slug}`,
+    url: `${SITE_URL}/posts/${encodeURIComponent(post.slug)}`,
     lastModified: post.updatedAt,
     changeFrequency: "monthly",
     priority: 0.7,

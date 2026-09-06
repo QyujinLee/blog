@@ -31,7 +31,8 @@ export async function GET() {
   const items = posts
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((post) => {
-      const url = `${SITE_URL}/posts/${post.slug}`;
+      // slug에 &나 공백이 들어가면 XML 자체가 깨지므로 URL도 인코딩 후 이스케이프
+      const url = escapeXml(`${SITE_URL}/posts/${encodeURIComponent(post.slug)}`);
       return `<item>
   <title>${escapeXml(post.title)}</title>
   <link>${url}</link>
