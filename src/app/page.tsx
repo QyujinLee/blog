@@ -16,7 +16,7 @@ export default async function Home() {
       <JsonLd data={PERSON_JSON_LD} />
 
       <aside className="hidden md:block">
-        <div className="sticky top-20">
+        <div className="sticky top-[var(--header-h)] transition-[top] duration-200 motion-reduce:transition-none">
           <Sidebar />
         </div>
       </aside>
@@ -32,6 +32,11 @@ export default async function Home() {
 
         <section className="flex flex-col gap-4">
           <h2 className="font-heading text-lg font-semibold">대표 글</h2>
+          {pinnedPosts.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              아직 고정된 대표 글이 없습니다.
+            </p>
+          )}
           <ul className="flex flex-col gap-3">
             {pinnedPosts.map((post) => (
               <li key={post.slug}>

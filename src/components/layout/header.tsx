@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,12 @@ export function Header() {
   const { isOwner, data: session } = useSession();
   const queryClient = useQueryClient();
 
+  // 헤더 높이의 단일 출처. 헤더 자신도 이 변수로 높이를 잡고, 사이드바 sticky도 같은 값을
+  // top으로 쓴다 (사이드바는 서버 컴포넌트라 collapsed를 prop으로 내려줄 수 없음)
+  useEffect(() => {
+    document.documentElement.style.setProperty("--header-h", collapsed ? "3rem" : "5rem");
+  }, [collapsed]);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     await queryClient.invalidateQueries({ queryKey: ["session"] });
@@ -38,13 +44,10 @@ export function Header() {
 
   return (
     <header
-      className={cn(
-        // 높이는 헤더가 직접 고정 — 안에 든 게 타이틀이든 검색바든 높이가 안 튀도록
-        // (h-20 = 사이드바 sticky top-20과 같은 값)
-        "sticky top-0 z-40 flex items-center gap-2 px-4 transition-all duration-200 motion-reduce:transition-none",
-        collapsed ? "h-12" : "h-20",
-      )}
+      // 높이는 헤더가 직접 고정 — 안에 든 게 타이틀이든 검색바든 높이가 안 튀도록
+      className="sticky top-0 z-40 flex items-center gap-2 px-4 transition-all duration-200 motion-reduce:transition-none"
       style={{
+        height: "var(--header-h)",
         background: "linear-gradient(115deg, var(--rose-quartz), var(--serenity))",
       }}
     >

@@ -19,13 +19,16 @@ export default async function PostsPage() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
-        <div className="sticky top-20">
+        <div className="sticky top-[var(--header-h)] transition-[top] duration-200 motion-reduce:transition-none">
           <Sidebar />
         </div>
       </aside>
 
       <div className="flex flex-col gap-6">
         <h1 className="font-heading text-2xl font-bold">전체 글</h1>
+        {visiblePosts.length === 0 && (
+          <p className="text-sm text-muted-foreground">아직 등록된 글이 없습니다.</p>
+        )}
         <ul className="flex flex-col gap-3">
           {visiblePosts.map((post) => (
             <li key={post.slug}>

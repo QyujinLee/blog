@@ -53,7 +53,7 @@ export function SearchContent() {
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
-        <div className="sticky top-20">
+        <div className="sticky top-[var(--header-h)] transition-[top] duration-200 motion-reduce:transition-none">
           <Sidebar />
         </div>
       </aside>

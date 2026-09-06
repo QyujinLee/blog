@@ -80,7 +80,7 @@ export default async function PostPage({
       />
 
       <aside className="hidden md:block">
-        <div className="sticky top-20">
+        <div className="sticky top-[var(--header-h)] transition-[top] duration-200 motion-reduce:transition-none">
           <Sidebar />
         </div>
       </aside>

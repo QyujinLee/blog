@@ -72,6 +72,10 @@
   --ring: var(--serenity-600);
   --radius: 0.625rem;
 
+  /* 헤더 높이 — 스크롤 시 헤더가 h-20 → h-12로 접히면 header.tsx가 이 값을 갱신한다.
+     사이드바 sticky가 top-20으로 고정돼 있으면 접힌 헤더 밑에 32px 틈이 생김 */
+  --header-h: 5rem;
+
   /* ---- semantic status: Pantone 2013 Emerald(성공) / 2007 Chili Pepper(오류·경고) ---- */
   --success: oklch(0.593 0.118 169.8); /* #009473 */
   --success-foreground: oklch(1 0 0);
