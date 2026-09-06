@@ -46,6 +46,20 @@ async function authHeaders(): Promise<{
   };
 }
 
+// 예전엔 non-2xx를 빈 배열로 삼켜서, 백엔드가 5xx(Render 콜드스타트 502, DB 다운 등)일 때
+// "글이 0개인 정상 사이트"와 구분이 안 됐다 — 빌드가 경고 하나 없이 exit 0으로 통과하고
+// 빈 사이트가 배포된다. 온디맨드 ISR이라 그렇게 한 번 배포되면 재검증 웹훅이 올 때까지 계속
+// 빈 상태로 남는다. 그래서 던져서 빌드를 실패시킨다. (연결 자체가 실패하는 경우는 fetch가
+// 이미 throw하지만, .next/cache의 fetch 캐시가 살아있으면 그마저 조용히 넘어간다.)
+// 글이 없는 것(200 + [])은 정상이므로 그대로 통과한다.
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    throw new Error(`blog-api ${init?.method ?? "GET"} ${url} 실패: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
 interface FetchPostsParams {
   category?: string;
   tags?: string[];
@@ -60,13 +74,10 @@ export async function fetchPosts(params: FetchPostsParams = {}): Promise<Post[]>
   if (params.series) search.set("series", params.series);
   const query = search.toString();
 
-  const response = await fetch(`${API_URL}/posts${query ? `?${query}` : ""}`, {
+  return fetchJson<Post[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
     headers,
     cache: isDraft ? "no-store" : "force-cache",
   });
-
-  if (!response.ok) return [];
-  return response.json();
 }
 
 export async function fetchPostBySlug(slug: string): Promise<Post | null> {
@@ -83,7 +94,11 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
     { headers, cache: isDraft ? "no-store" : "force-cache" },
   );
 
-  if (!response.ok) return null;
+  // 404는 "없는 글" — notFound()로 이어져야 할 정상 흐름이라 null. 그 외 5xx 등은 장애이므로 던짐
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`blog-api GET /posts/${normalizedSlug} 실패: ${response.status}`);
+  }
   return response.json();
 }
 
@@ -97,18 +112,13 @@ export async function fetchPublicPosts(params: FetchPostsParams = {}): Promise<P
   if (params.series) search.set("series", params.series);
   const query = search.toString();
 
-  const response = await fetch(`${API_URL}/posts${query ? `?${query}` : ""}`, {
+  return fetchJson<Post[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
     cache: "force-cache",
   });
-
-  if (!response.ok) return [];
-  return response.json();
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_URL}/categories`, { cache: "force-cache" });
-  if (!response.ok) return [];
-  return response.json();
+  return fetchJson<Category[]>(`${API_URL}/categories`, { cache: "force-cache" });
 }
 
 export function categoryLabel(categories: Category[], slug: string): string {
