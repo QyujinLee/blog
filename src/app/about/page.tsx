@@ -103,28 +103,29 @@ export default function AboutPage() {
         </div>
       </aside>
 
-      <div className="flex flex-col gap-20">
+      {/* 한국어 기본 줄바꿈은 음절 단위라 "추 / 적해"처럼 단어 중간이 잘림 — 띄어쓰기에서만 끊게 함 */}
+      <div className="flex flex-col gap-20 break-keep">
         <section className="flex flex-col items-center gap-8 text-center">
           <h1 className="sr-only">소개</h1>
           <Avatar className="size-80">
             <AvatarImage src="/profile.jpeg" alt="이규진" />
             <AvatarFallback className="text-8xl">G</AvatarFallback>
           </Avatar>
-          <p className="leading-[1.45] text-lg text-muted-foreground">
+          <p className="text-balance text-xl leading-relaxed font-semibold sm:text-2xl">
             운영 중인 서비스에서 마주한 문제를 끝까지 추적해 해결하는 풀스택
             개발자 이규진입니다.
           </p>
-          <ol className="flex w-full flex-col gap-4 text-left">
+          <ol className="flex w-full flex-col gap-8 text-left">
             {HIGHLIGHTS.map((highlight, index) => (
-              <li key={highlight.title} className="flex flex-col gap-1.5">
-                <p className="text-lg font-medium leading-[1.45]">
+              <li key={highlight.title} className="flex flex-col gap-3">
+                <p className="text-lg leading-relaxed font-medium">
                   {index + 1}. {highlight.title}
                 </p>
-                <ul className="flex flex-col gap-1.5 pl-4">
+                <ul className="flex list-[square] flex-col gap-2.5 pl-9">
                   {highlight.items.map((item) => (
                     <li
                       key={item}
-                      className="leading-[1.45] text-base text-muted-foreground before:mr-1.5 before:content-['▪︎']"
+                      className="text-base leading-relaxed text-muted-foreground"
                     >
                       {item}
                     </li>
@@ -135,7 +136,7 @@ export default function AboutPage() {
           </ol>
         </section>
 
-        <section className="flex flex-col gap-5">
+        <section className="flex flex-col gap-6">
           <SectionHeading>이력</SectionHeading>
           <div className="flex flex-col">
             {CAREERS.map((career, index) => {
@@ -146,7 +147,7 @@ export default function AboutPage() {
                     <span className="mt-3 size-2.5 shrink-0 rounded-full bg-primary" />
                     {!isLast && <span className="w-px flex-1 bg-border" />}
                   </div>
-                  <div className={`flex flex-col gap-2 ${isLast ? "" : "pb-12"}`}>
+                  <div className={`flex flex-col gap-4 ${isLast ? "" : "pb-16"}`}>
                     <div className="flex flex-wrap items-center gap-x-3">
                       <div
                         className={`flex h-10 items-center rounded-md px-3 ${career.logo.chip}`}
@@ -163,11 +164,11 @@ export default function AboutPage() {
                         {career.period}
                       </p>
                     </div>
-                    <ul className="flex flex-col gap-2">
+                    <ul className="flex list-['-_'] flex-col gap-4 pl-4">
                       {career.items.map((item) => (
                         <li
                           key={item}
-                          className="leading-[1.45] text-base text-muted-foreground before:mr-1.5 before:content-['-']"
+                          className="text-base leading-relaxed text-muted-foreground"
                         >
                           {item}
                         </li>
@@ -180,11 +181,11 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-6">
           <SectionHeading>스킬</SectionHeading>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-5">
             {SKILL_GROUPS.map((group) => (
-              <div key={group.label} className="flex flex-col gap-1.5">
+              <div key={group.label} className="flex flex-col gap-2">
                 <p className="text-base font-medium text-muted-foreground">
                   {group.label}
                 </p>
@@ -204,13 +205,13 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-6">
           <SectionHeading>자격증</SectionHeading>
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-6">
             {CERTIFICATIONS.map((cert) => (
-              <li key={cert.id} className="flex flex-col gap-0.5">
-                <p className="text-lg font-medium leading-[1.45]">{cert.name}</p>
-                <p className="leading-[1.45] text-base text-muted-foreground">
+              <li key={cert.id} className="flex flex-col gap-1">
+                <p className="text-lg leading-relaxed font-medium">{cert.name}</p>
+                <p className="text-base leading-relaxed text-muted-foreground">
                   {cert.issuer} · {cert.date}
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -221,9 +222,9 @@ export default function AboutPage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-2">
+        <section className="flex flex-col gap-6">
           <SectionHeading>학력</SectionHeading>
-          <p className="leading-[1.45] text-base text-muted-foreground">
+          <p className="text-base leading-relaxed text-muted-foreground">
             국립 한경대학교 컴퓨터공학과 졸업 (2012.03 ~ 2018.02)
           </p>
         </section>

@@ -64,7 +64,9 @@
   --secondary: var(--serenity-200);
   --secondary-foreground: var(--serenity-900);
   --muted: var(--serenity-200);
-  --muted-foreground: oklch(0.525 0.045 261.4); /* #5C6B85 */
+  /* 긴 설명 문단을 읽기엔 #5C6B85(배경 대비 5.02:1)가 약해 진하게 — 배경 6.93:1 / 카드 7.45:1,
+     foreground(#1B2A42)와는 명도차를 남겨 제목·설명 위계는 유지 */
+  --muted-foreground: oklch(0.45 0.045 261.4); /* #47566F */
   --accent: oklch(0.936 0.016 262.8); /* #E4EAF5 */
   --accent-foreground: var(--serenity-900);
   --border: var(--serenity-200);
@@ -105,7 +107,7 @@
   --secondary: oklch(0.336 0.052 265.9); /* #2A3652 */
   --secondary-foreground: oklch(0.954 0.015 260.7);
   --muted: oklch(0.336 0.052 265.9);
-  --muted-foreground: oklch(0.703 0.048 261.8); /* #8FA0BE */
+  --muted-foreground: oklch(0.77 0.048 261.8); /* #A4B5D4 — 라이트와 같은 이유로 대비 상향, 카드 위 7.90:1 */
   --accent: oklch(0.312 0.058 263.2); /* #21304E */
   --accent-foreground: oklch(0.954 0.015 260.7);
   --border: oklch(0.336 0.052 265.9);
