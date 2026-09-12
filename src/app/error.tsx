@@ -12,6 +12,18 @@ export default function ErrorPage({
 }) {
   useEffect(() => {
     console.error(error);
+    // 브라우저 콘솔에만 남으면 개발자는 영영 모른다 — 서버 로그로도 한 줄 넘긴다
+    fetch("/api/client-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: error.message,
+        digest: error.digest,
+        url: window.location.href,
+      }),
+    }).catch(() => {
+      // 보고 실패까지 사용자에게 보여줄 필요는 없음
+    });
   }, [error]);
 
   return (
