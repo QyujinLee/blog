@@ -75,11 +75,11 @@ Node 버전은 `.nvmrc`(v24) 기준입니다. `nvm use`로 맞춰주세요. 실�
 yarn lint                              # ESLint
 yarn tsc --noEmit -p tsconfig.json      # 타입체크
 yarn test                              # Vitest 유닛 테스트 (컴포넌트 + Storybook 스토리)
-yarn test:e2e                          # Playwright E2E (yarn dev 서버 자동 기동)
+yarn test:e2e                          # Playwright E2E (가짜 API 스텁 + yarn dev 서버 자동 기동)
 yarn build                             # 프로덕션 빌드
 ```
 
-PR을 올리면 `.github/workflows/ci.yml`이 lint + 타입체크 + 유닛 테스트 + E2E 테스트를 자동으로 돌립니다.
+PR을 올리면 `.github/workflows/ci.yml`이 lint + 타입체크 + 유닛 테스트 + E2E 테스트를 자동으로 돌립니다. E2E는 실제 백엔드 대신 고정 픽스처를 주는 스텁 API(`e2e/stub-api.mjs`)에 붙습니다 — 그래야 CI가 배포 상태나 DB 내용에 휘둘리지 않습니다.
 
 ## 진행 상황
 
@@ -87,4 +87,4 @@ PR을 올리면 `.github/workflows/ci.yml`이 lint + 타입체크 + 유닛 테�
 
 댓글·좋아요·방문자(Google) 로그인은 백엔드(`blog-api`)에는 구현·검증되어 있지만, 로그인 없는 방문자 참여 지표는 조회수 하나로 충분하다고 판단해 v1 프론트 스코프에서 의도적으로 제외했습니다.
 
-단계별 진행 상황은 [`docs/blog-structure-plan.md`](docs/blog-structure-plan.md)의 체크리스트에서 확인할 수 있습니다.
+단계별 진행 상황은 [`docs/blog-structure-plan.md`의 "다음 단계" 체크리스트](docs/blog-structure-plan.md#다음-단계-단계별)에서 확인할 수 있습니다. 문서가 길어 맨 위에 목차를 두었습니다.
