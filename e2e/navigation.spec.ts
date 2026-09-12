@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-// 4차(백엔드 연동) 전까지는 로그인/글 작성 같은 "핵심 플로우"를 실제로 검증할 수 없어서,
-// 지금 목업 데이터로 이미 동작하는 탐색 플로우로 E2E 뼈대만 검증한다.
+// 데이터는 e2e/stub-api.mjs가 주는 고정 픽스처다 — 실제 백엔드를 보면 배포 상태와
+// DB 내용에 휘둘리므로. 픽스처를 바꾸면 아래 제목/슬러그 기대값도 같이 바꿀 것.
 test("홈에서 전체 글 목록으로 이동해 글 상세까지 들어갈 수 있다", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "gyujin" })).toBeVisible();
