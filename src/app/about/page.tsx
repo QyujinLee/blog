@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SkillIcons } from "@/components/about/skill-icons";
 import { buildMetadata, PERSON_JSON_LD } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
@@ -189,14 +190,7 @@ export default function AboutPage() {
                 <p className="text-base font-medium text-muted-foreground">
                   {group.label}
                 </p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://skillicons.dev/icons?i=${group.icons}`}
-                  alt={group.icons.split(",").join(", ")}
-                  className="h-10 w-auto"
-                  width={48 * group.icons.split(",").length}
-                  height={48}
-                />
+                <SkillIcons icons={group.icons} />
               </div>
             ))}
             <p className="text-xs text-muted-foreground">

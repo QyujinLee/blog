@@ -109,6 +109,9 @@ export function Header() {
                     variant="ghost"
                     size="sm"
                     aria-label="새 글 작성"
+                    // Link는 <a>라 네이티브 button이 아님 — 안 주면 Base UI가 버튼 시맨틱이
+                    // 깨진다고 경고한다 (not-found.tsx와 같은 처리)
+                    nativeButton={false}
                     render={<Link href="/posts/new" />}
                   />
                 }

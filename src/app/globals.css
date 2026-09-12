@@ -144,7 +144,8 @@
   /* markdown-renderer.tsx가 렌더링한 글 본문 스타일 — 코드블럭 배경은 라이트/다크 공통으로
      --serenity-900 고정 (docs/blog-structure-plan.md "비주얼 아이덴티티" 참고) */
   .markdown-body {
-    @apply flex flex-col gap-4 leading-relaxed;
+    /* 한국어 기본 줄바꿈은 음절 단위라 단어 중간이 잘림 — 띄어쓰기에서만 끊게 함 (about 페이지와 동일) */
+    @apply flex flex-col gap-4 leading-relaxed break-keep;
   }
   .markdown-body > :first-child {
     @apply mt-0;

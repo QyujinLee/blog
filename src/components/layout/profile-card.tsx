@@ -15,10 +15,8 @@ export function ProfileCard() {
       </Link>
       <div>
         <p className="font-heading font-semibold">gyujin</p>
-        <p className="text-sm text-muted-foreground">
-          실무에서 마주친 문제와
-          <br />
-          해결 과정을 정리합니다
+        <p className="text-sm break-keep text-muted-foreground">
+          실무에서 마주친 문제와 해결 과정을 정리합니다
         </p>
       </div>
     </div>

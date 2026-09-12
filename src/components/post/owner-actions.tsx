@@ -62,6 +62,7 @@ export function OwnerActions({ post }: { post: Post }) {
           variant="ghost"
           size="icon-sm"
           aria-label="수정"
+          nativeButton={false}
           render={<Link href={`/posts/${post.slug}/edit`} />}
         >
           <Pencil />
