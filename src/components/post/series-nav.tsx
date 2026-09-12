@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { Post } from "@/lib/posts";
+import type { PostSummary } from "@/lib/posts";
 
 interface SeriesNavProps {
   seriesTitle: string;
-  entries: Post[];
+  entries: PostSummary[];
   currentSlug: string;
 }
 

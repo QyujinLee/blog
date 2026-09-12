@@ -22,6 +22,11 @@ export interface Post {
   updatedAt: string;
 }
 
+// 목록 응답(GET /posts)엔 body가 없다 — 사이드바가 모든 페이지에서 이 목록으로 태그 개수를
+// 집계하는데 본문까지 실려 오면 글이 쌓일수록 매 페이지 수백 KB가 오간다. 본문이 필요한
+// 상세/수정 화면은 fetchPostBySlug(단건)로 따로 가져간다.
+export type PostSummary = Omit<Post, "body">;
+
 export interface Category {
   slug: string;
   label: string;
@@ -66,7 +71,7 @@ interface FetchPostsParams {
   series?: string;
 }
 
-export async function fetchPosts(params: FetchPostsParams = {}): Promise<Post[]> {
+export async function fetchPosts(params: FetchPostsParams = {}): Promise<PostSummary[]> {
   const { headers, isDraft } = await authHeaders();
   const search = new URLSearchParams();
   if (params.category) search.set("category", params.category);
@@ -74,7 +79,7 @@ export async function fetchPosts(params: FetchPostsParams = {}): Promise<Post[]>
   if (params.series) search.set("series", params.series);
   const query = search.toString();
 
-  return fetchJson<Post[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
+  return fetchJson<PostSummary[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
     headers,
     cache: isDraft ? "no-store" : "force-cache",
   });
@@ -105,14 +110,14 @@ export async function fetchPostBySlug(slug: string): Promise<Post | null> {
 // generateStaticParams 전용 — 빌드 타임엔 요청 컨텍스트가 없어 draftMode()/cookies()를 못 씀
 // (공식 에러 메시지로 확인: "draftMode() inside generateStaticParams is not supported").
 // 어차피 정적 생성 대상은 공개 글 목록이라 draft 인식이 필요하지도 않음
-export async function fetchPublicPosts(params: FetchPostsParams = {}): Promise<Post[]> {
+export async function fetchPublicPosts(params: FetchPostsParams = {}): Promise<PostSummary[]> {
   const search = new URLSearchParams();
   if (params.category) search.set("category", params.category);
   if (params.tags?.length) search.set("tags", params.tags.join(","));
   if (params.series) search.set("series", params.series);
   const query = search.toString();
 
-  return fetchJson<Post[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
+  return fetchJson<PostSummary[]>(`${API_URL}/posts${query ? `?${query}` : ""}`, {
     cache: "force-cache",
   });
 }

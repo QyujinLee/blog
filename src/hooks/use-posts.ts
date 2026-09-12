@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Post } from "@/lib/posts";
+import type { Post, PostSummary } from "@/lib/posts";
 
 export type SortOption = "relevance" | "latest";
 
@@ -13,7 +13,7 @@ export interface PostSearchParams {
 }
 
 export function usePosts(params: PostSearchParams) {
-  return useQuery<Post[]>({
+  return useQuery<PostSummary[]>({
     queryKey: ["posts", "search", params],
     enabled: Boolean(params.q?.trim()),
     queryFn: async ({ signal }) => {
