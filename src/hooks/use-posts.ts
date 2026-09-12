@@ -13,19 +13,29 @@ export interface PostSearchParams {
 }
 
 export function usePosts(params: PostSearchParams) {
+  const query = params.q?.trim();
+  const hasFilter = Boolean(params.category || params.tags?.length);
+
   return useQuery<PostSummary[]>({
     queryKey: ["posts", "search", params],
-    enabled: Boolean(params.q?.trim()),
+    enabled: Boolean(query) || hasFilter,
     queryFn: async ({ signal }) => {
       const search = new URLSearchParams();
-      search.set("q", params.q!.trim());
-      if (params.sort) search.set("sort", params.sort);
       if (params.category) search.set("category", params.category);
       if (params.tags?.length) search.set("tags", params.tags.join(","));
 
-      const response = await fetch(`/api/posts/search?${search.toString()}`, {
-        signal,
-      });
+      // 백엔드 /posts/search는 q가 필수라 없으면 400을 낸다. 사이드바·글 상세의 태그 링크는
+      // q 없이 /search?tags=...로 들어오므로, 그 경우엔 같은 필터를 지원하는 목록 API로 조회한다
+      // (GET /posts는 category/tags 필터 + createdAt desc 정렬을 이미 지원)
+      if (query) {
+        search.set("q", query);
+        if (params.sort) search.set("sort", params.sort);
+      }
+
+      const response = await fetch(
+        `${query ? "/api/posts/search" : "/api/posts"}?${search.toString()}`,
+        { signal },
+      );
       if (!response.ok) throw new Error("검색에 실패했습니다.");
       return response.json();
     },

@@ -62,18 +62,21 @@ export function SearchContent() {
         <SearchBar defaultValue={q} onSearch={(query) => updateParams({ q: query || null })} />
 
         <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-          <select
-            value={sort}
-            onChange={(event) => updateParams({ sort: event.target.value })}
-            aria-label="정렬"
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          {/* 관련도 정렬은 검색어 가중치 기반이라 검색어가 있을 때만 의미가 있음 */}
+          {q.trim() && (
+            <select
+              value={sort}
+              onChange={(event) => updateParams({ sort: event.target.value })}
+              aria-label="정렬"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
 
           <div className="flex flex-wrap gap-x-3 gap-y-1.5">
             {categories.map((c) => (
@@ -104,8 +107,10 @@ export function SearchContent() {
           </div>
         </div>
 
-        {!q.trim() ? (
-          <p className="text-sm text-muted-foreground">검색어를 입력해주세요.</p>
+        {!q.trim() && !category && tags.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            검색어를 입력하거나 카테고리·태그를 선택해주세요.
+          </p>
         ) : isLoading ? (
           <p className="text-sm text-muted-foreground">검색 중...</p>
         ) : isError ? (
