@@ -18,7 +18,12 @@ export function CodeBlockCopyButton({
 
   async function handleCopy() {
     const text = preRef.current?.textContent ?? "";
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // 권한 거부·비보안 컨텍스트 등 — 복사 실패는 조용히 넘기고 "복사됨" 표시만 안 함
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -34,7 +39,8 @@ export function CodeBlockCopyButton({
         size="icon-sm"
         aria-label={copied ? "복사됨" : "코드 복사"}
         onClick={handleCopy}
-        className="absolute top-2 right-2 opacity-0 hover:bg-white/10 group-hover:opacity-100"
+        // hover가 없는 터치 기기와 키보드 포커스에서도 버튼이 보여야 쓸 수 있음
+        className="absolute top-2 right-2 opacity-0 hover:bg-white/10 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
         style={{ color: "var(--serenity-50)" }}
       >
         {copied ? <Check className="text-success" /> : <Copy />}

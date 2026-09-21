@@ -23,7 +23,11 @@ export function SearchContent() {
   const q = searchParams.get("q") ?? "";
   const category = searchParams.get("category") ?? "";
   const tags = searchParams.get("tags")?.split(",").filter(Boolean) ?? [];
-  const sort = (searchParams.get("sort") as SortOption | null) ?? "relevance";
+  // URL은 사용자가 아무 값이나 넣을 수 있음 — 모르는 값을 그대로 넘기면 백엔드가 400을 냄
+  const rawSort = searchParams.get("sort");
+  const sort: SortOption = SORT_OPTIONS.some((option) => option.value === rawSort)
+    ? (rawSort as SortOption)
+    : "relevance";
 
   const { data: posts, isLoading, isError } = usePosts({
     q: q || undefined,

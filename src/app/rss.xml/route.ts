@@ -29,7 +29,9 @@ export async function GET() {
   // (코드 리뷰로 실제로 발견한 버그)
   const posts = await fetchPublicPosts();
   const items = posts
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    // pubDate가 createdAt이므로 정렬도 같은 기준 — updatedAt으로 정렬하면 옛 글을 고칠 때마다
+    // 예전 날짜를 단 채 피드 맨 위로 올라옴
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map((post) => {
       // slug에 &나 공백이 들어가면 XML 자체가 깨지므로 URL도 인코딩 후 이스케이프
       const url = escapeXml(`${SITE_URL}/posts/${encodeURIComponent(post.slug)}`);

@@ -11,10 +11,8 @@ export const metadata = buildMetadata({
 });
 
 export default async function PostsPage() {
+  // 백엔드가 이미 createdAt desc로 정렬해서 내려줌
   const [posts, categories] = await Promise.all([fetchPosts(), fetchCategories()]);
-  const visiblePosts = [...posts].sort((a, b) =>
-    a.createdAt < b.createdAt ? 1 : -1,
-  );
 
   return (
     <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 md:grid-cols-[240px_1fr]">
@@ -26,11 +24,11 @@ export default async function PostsPage() {
 
       <div className="flex flex-col gap-6">
         <h1 className="font-heading text-2xl font-bold">전체 글</h1>
-        {visiblePosts.length === 0 && (
+        {posts.length === 0 && (
           <p className="text-sm text-muted-foreground">아직 등록된 글이 없습니다.</p>
         )}
         <ul className="flex flex-col gap-3">
-          {visiblePosts.map((post) => (
+          {posts.map((post) => (
             <li key={post.slug}>
               <Link
                 href={`/posts/${post.slug}`}
