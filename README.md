@@ -75,7 +75,7 @@ Node 버전은 `.nvmrc`(v24) 기준입니다. `nvm use`로 맞춰주세요. 실�
 yarn lint                              # ESLint
 yarn tsc --noEmit -p tsconfig.json      # 타입체크
 yarn test                              # Vitest 유닛 테스트 (컴포넌트 + Storybook 스토리)
-yarn test:e2e                          # Playwright E2E (가짜 API 스텁 + yarn dev 서버 자동 기동)
+yarn test:e2e                          # Playwright E2E (가짜 API 스텁 + yarn dev를 3100 포트로 자동 기동)
 yarn build                             # 프로덕션 빌드
 ```
 

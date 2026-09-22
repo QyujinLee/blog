@@ -25,7 +25,7 @@ yarn lint                           # ESLint
 yarn tsc --noEmit -p tsconfig.json  # 타입체크
 yarn test                           # Vitest (컴포넌트 유닛 테스트 + Storybook 스토리, Browser Mode/Playwright Chromium)
 yarn test -- <파일명 또는 패턴>       # 단일 테스트만 실행
-yarn test:e2e                       # Playwright E2E (yarn dev 서버 자동 기동)
+yarn test:e2e                       # Playwright E2E (yarn dev를 3100 포트로 자동 기동 — 3000의 다른 서버와 안 엉키게)
 yarn build                          # 프로덕션 빌드
 yarn storybook                      # http://localhost:6006
 ```

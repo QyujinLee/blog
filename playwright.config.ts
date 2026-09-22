@@ -6,7 +6,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "line",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     trace: "on-first-retry",
   },
   // ponytail: Chromium만 — 개인 블로그 포트폴리오라 크로스브라우저 매트릭스는 과함, 필요해지면 devices['Desktop Firefox'] 등 추가
@@ -20,9 +20,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 30 * 1000,
     },
+    // 3000이 아니라 전용 포트 — reuseExistingServer라서 3000에 다른 프로젝트 서버가 떠 있으면
+    // 그걸 이 블로그로 알고 붙어 테스트가 전부 엉뚱하게 실패한다
     {
-      command: "yarn dev",
-      url: "http://localhost:3000",
+      command: "yarn dev -p 3100",
+      url: "http://localhost:3100",
       env: { API_URL: "http://127.0.0.1:4100" },
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
