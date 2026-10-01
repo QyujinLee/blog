@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
+import { PostCard } from "@/components/post/post-card";
 import { SearchBar } from "@/components/layout/search-bar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useCategories } from "@/hooks/use-categories";
@@ -125,17 +124,15 @@ export function SearchContent() {
           <ul className="flex flex-col gap-3">
             {posts.map((post) => (
               <li key={post.slug}>
-                <Link
-                  href={`/posts/${post.slug}`}
-                  className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
-                >
-                  <Badge variant="secondary" className="w-fit">
-                    {categories.find((c) => c.slug === post.categorySlug)?.label ??
-                      post.categorySlug}
-                  </Badge>
-                  <span className="font-heading font-semibold">{post.title}</span>
-                  <span className="text-sm text-muted-foreground">{post.summary}</span>
-                </Link>
+                <PostCard
+                  slug={post.slug}
+                  title={post.title}
+                  summary={post.summary}
+                  categoryLabel={
+                    categories.find((c) => c.slug === post.categorySlug)?.label ??
+                    post.categorySlug
+                  }
+                />
               </li>
             ))}
           </ul>

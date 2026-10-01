@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useLoginModalStore } from "@/lib/login-modal-store";
+import { errorMessageFromResponse } from "@/lib/api-error";
 
 export function LoginModal() {
   const isOpen = useLoginModalStore((state) => state.isOpen);
@@ -36,11 +37,7 @@ export function LoginModal() {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        const message = Array.isArray(error.message)
-          ? error.message[0]
-          : (error.message ?? "로그인에 실패했습니다.");
-        toast.error(message);
+        toast.error(await errorMessageFromResponse(response, "로그인에 실패했습니다."));
         return;
       }
 

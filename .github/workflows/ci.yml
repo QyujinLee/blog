@@ -3,6 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # main에 직접 커밋하는 경우가 많아 pull_request만으로는 CI가 아예 돌지 않았다
+  push:
+    branches: [main]
 
 jobs:
   lint-and-test:

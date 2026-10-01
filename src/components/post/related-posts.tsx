@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { PostCard } from "./post-card";
 import { fetchPosts, categoryLabel, type Post, type Category } from "@/lib/posts";
 
 interface RelatedPostsProps {
@@ -28,16 +27,12 @@ export async function RelatedPosts({ post, categories }: RelatedPostsProps) {
       <ul className="flex flex-col gap-3">
         {related.map((item) => (
           <li key={item.slug}>
-            <Link
-              href={`/posts/${item.slug}`}
-              className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4 hover:bg-muted"
-            >
-              <Badge variant="secondary" className="w-fit">
-                {categoryLabel(categories, item.categorySlug)}
-              </Badge>
-              <span className="font-heading font-semibold">{item.title}</span>
-              <span className="text-sm text-muted-foreground">{item.summary}</span>
-            </Link>
+            <PostCard
+              slug={item.slug}
+              title={item.title}
+              summary={item.summary}
+              categoryLabel={categoryLabel(categories, item.categorySlug)}
+            />
           </li>
         ))}
       </ul>

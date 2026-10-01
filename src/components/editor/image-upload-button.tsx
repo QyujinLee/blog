@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { errorMessageFromResponse } from "@/lib/api-error";
 
 interface ImageUploadButtonProps {
   onUploaded: (markdown: string) => void;
@@ -27,11 +28,9 @@ export function ImageUploadButton({ onUploaded }: ImageUploadButtonProps) {
       const response = await fetch("/api/images", { method: "POST", body: formData });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        const message = Array.isArray(error.message)
-          ? error.message[0]
-          : (error.message ?? "이미지 업로드에 실패했습니다.");
-        throw new Error(message);
+        throw new Error(
+          await errorMessageFromResponse(response, "이미지 업로드에 실패했습니다."),
+        );
       }
 
       const { url } = await response.json();

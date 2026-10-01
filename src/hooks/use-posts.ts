@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Post, PostSummary } from "@/lib/posts";
+import { errorMessageFromResponse } from "@/lib/api-error";
 
 export type SortOption = "relevance" | "latest";
 
@@ -63,11 +64,7 @@ async function postJson<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    const message = Array.isArray(error.message)
-      ? error.message[0]
-      : (error.message ?? "요청에 실패했습니다.");
-    throw new Error(message);
+    throw new Error(await errorMessageFromResponse(response, "요청에 실패했습니다."));
   }
 
   if (response.status === 204) return null as T;
