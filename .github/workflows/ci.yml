@@ -24,9 +24,11 @@ jobs:
 
       - run: yarn tsc --noEmit -p tsconfig.json
 
-      - run: yarn test
-
+      # yarn test(Vitest Browser Mode)도 Playwright Chromium으로 돌기 때문에 유닛 테스트보다
+      # 먼저 설치해야 한다 — 뒤에 두면 "Executable doesn't exist"로 유닛 테스트가 깨진다
       - run: npx playwright install --with-deps chromium
+
+      - run: yarn test
 
       - run: yarn test:e2e
 
